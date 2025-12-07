@@ -1,0 +1,125 @@
+/* Reset */
+* {
+    box-sizing: border-box;
+}
+
+/* Background */
+body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    background: radial-gradient(circle at top, #0a1a33, #020617);
+    color: #e5e7eb;
+    min-height: 100vh;
+}
+
+/* Page container */
+.page-card {
+    max-width: 1200px;
+    margin: 36px auto;
+    padding: 28px;
+}
+
+/* Title */
+.page-card h1 {
+    text-align: center;
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+/* Image comparison grid */
+.images {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+
+/* Image card */
+.image-container {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    padding: 18px;
+    border-radius: 18px;
+    text-align: center;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* Labels */
+.image-container h2 {
+    color: #93c5fd;
+    margin-bottom: 14px;
+    letter-spacing: 0.4px;
+}
+
+/* Images */
+.image-container img {
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    border-radius: 14px;
+    background: #020617;
+    padding: 6px;
+}
+
+/* Links */
+.image-container a {
+    display: inline-block;
+    margin-top: 12px;
+    margin-right: 14px;
+    color: #60a5fa;
+    font-size: 0.95rem;
+    text-decoration: none;
+}
+
+.image-container a:hover {
+    text-decoration: underline;
+}
+
+/* Process again link */
+.process-again {
+    display: block;
+    margin-top: 34px;
+    text-align: center;
+    color: #3b82f6;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.process-again:hover {
+    text-decoration: underline;
+}
+
+/* Mobile */
+@media (max-width: 900px) {
+    .images {
+        grid-template-columns: 1fr;
+    }
+
+    .image-container img {
+        max-height: 320px;
+    }
+}
+
+/* Bottom center button */
+.process-again-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 14px 26px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    box-shadow: 0 15px 35px rgba(37, 99, 235, 0.45);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    z-index: 1000;
+}
+
+/* Hover effect */
+.process-again-btn:hover {
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 20px 45px rgba(37, 99, 235, 0.55);
+}

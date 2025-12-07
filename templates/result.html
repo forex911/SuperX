@@ -2,14 +2,7 @@
 <html>
 <head>
     <title>Image Enhanced</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1 { color: #333; }
-        .images { display: flex; flex-wrap: wrap; gap: 20px; }
-        .image-container { flex: 1; min-width: 300px; }
-        img { max-width: 100%; border: 1px solid #ddd; }
-        .debug-info { background: #f5f5f5; padding: 10px; border: 1px solid #ddd; margin: 20px 0; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='result.css') }}">
 </head>
 <body>
     <h1>Image Enhancement Results</h1>
@@ -29,15 +22,7 @@
         </div>
     </div>
     
-    <div class="debug-info">
-        <h3>Debug Information</h3>
-        <p>Original file: {{ original }}</p>
-        <p>Original URL: {{ original_url }}</p>
-        <p>Enhanced file: {{ enhanced }}</p>
-        <p>Enhanced URL: {{ enhanced_url }}</p>
-        <p><a href="/show-results">View all enhanced images</a></p>
-    </div>
-    
-    <p><a href="/">Process another image</a></p>
+    <a href="/" class="process-again-btn">Process another image</a>
+
 </body>
 </html>
