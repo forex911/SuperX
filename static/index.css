@@ -48,7 +48,7 @@ input[type="file"] {
     border-radius: 14px;
     background: #020617;
     border: 1px dashed #334155;
-    color: #e5e7eb;
+    color: #6080bf;
     cursor: pointer;
 }
 
@@ -97,3 +97,35 @@ button:hover {
         padding: 26px 22px;
     }
 }
+
+/* Hide default file input */
+.custom-file-upload input[type="file"] {
+    display: none;
+}
+
+/* Custom upload box */
+.custom-file-upload {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    text-align: center;
+    border-radius: 16px;
+    border: 2px dashed #334155;
+    background: #020617;
+    color: #cbd5f5;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+/* Hover effect */
+.custom-file-upload:hover {
+    border-color: #3b82f6;
+}
+
+/* File selected state */
+.custom-file-upload.active {
+    border-color: #22c55e;
+    color: #22c55e;
+}
+
