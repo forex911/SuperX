@@ -4,73 +4,136 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Image Enhancement — 4× Super Resolution</title>
-    <meta name="description" content="Transform your images with AI-powered 4x super-resolution enhancement using ESRGAN neural network. Upload any image and get stunning results.">
+    <meta name="description" content="Transform your images with AI-powered 4x super-resolution enhancement using ESRGAN. Runs entirely in your browser — no uploads, no servers.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+
+    <!-- ONNX Runtime Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.all.min.js"></script>
+
     <style>
-        /* Aesthetic Minimalist Landing Page */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* ===== RESET & VARIABLES ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
             --cream: #FAF8F3;
+            --cream-dark: #F2EFE8;
             --beige: #E8E4DC;
             --sage: #B8B5A8;
             --charcoal: #2A2A2A;
             --soft-black: #1A1A1A;
+            --accent-gold: #D4AF37;
+            --accent-rose: #D4A5A5;
             --border-light: #E0DED8;
+            --shadow: rgba(0, 0, 0, 0.08);
+            --shadow-strong: rgba(0, 0, 0, 0.15);
+            --success: #4A7C59;
+            --error: #9B3B3B;
         }
+
+        /* ===== BASE ===== */
+        html { scroll-behavior: smooth; }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--cream);
             color: var(--charcoal);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            padding: 2rem;
+            overflow-x: hidden;
         }
 
-        /* Subtle background pattern */
         body::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image:
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 2px,
-                    rgba(0, 0, 0, 0.01) 2px,
-                    rgba(0, 0, 0, 0.01) 4px
-                );
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: repeating-linear-gradient(
+                0deg, transparent, transparent 2px,
+                rgba(0,0,0,0.01) 2px, rgba(0,0,0,0.01) 4px
+            );
             pointer-events: none;
             z-index: 0;
         }
 
-        .landing-container {
-            max-width: 800px;
-            margin: 0 auto;
+        /* ===== NAVIGATION ===== */
+        .nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            padding: 1.25rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(250, 248, 243, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(224, 222, 216, 0.5);
+            transition: all 0.4s ease;
+        }
+
+        .nav-logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--soft-black);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-status {
+            font-size: 0.7rem;
+            color: var(--sage);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--sage);
+            transition: background 0.4s ease;
+        }
+
+        .status-dot.loading {
+            background: var(--accent-gold);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .status-dot.ready {
+            background: var(--success);
+        }
+
+        .status-dot.error {
+            background: var(--error);
+        }
+
+        /* ===== SECTIONS ===== */
+        section {
             position: relative;
             z-index: 1;
         }
 
+        /* ===== HERO ===== */
         .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
+            padding: 2rem;
+        }
+
+        .hero-content {
+            max-width: 800px;
             animation: fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        h1 {
+        .hero h1 {
             font-family: 'Cormorant Garamond', serif;
             font-size: clamp(4rem, 12vw, 9rem);
             font-weight: 300;
@@ -80,8 +143,7 @@
             line-height: 0.9;
         }
 
-        /* Decorative line */
-        h1::after {
+        .hero h1::after {
             content: '';
             display: block;
             width: 80px;
@@ -90,8 +152,7 @@
             margin: 2rem auto 0;
         }
 
-        .subtitle {
-            font-family: 'Inter', sans-serif;
+        .hero .subtitle {
             font-size: 0.75rem;
             color: var(--sage);
             font-weight: 400;
@@ -100,19 +161,30 @@
             margin-bottom: 3rem;
         }
 
-        .description {
-            font-family: 'Inter', sans-serif;
+        .hero .description {
             font-size: 1rem;
-            color: var(--charcoal);
             font-weight: 300;
             line-height: 1.8;
             max-width: 500px;
-            margin: 0 auto 4rem;
+            margin: 0 auto 2rem;
             opacity: 0.8;
         }
 
+        .hero .privacy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            color: var(--sage);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 3rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-light);
+            border-radius: 2rem;
+        }
+
         .cta-button {
-            font-family: 'Inter', sans-serif;
             display: inline-block;
             padding: 1.25rem 4rem;
             background: var(--charcoal);
@@ -124,30 +196,16 @@
             text-transform: uppercase;
             letter-spacing: 0.15em;
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
             position: relative;
             overflow: hidden;
             margin-bottom: 6rem;
         }
 
-        .cta-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: var(--soft-black);
-            transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: -1;
-        }
-
-        .cta-button:hover::before {
-            left: 0;
-        }
-
         .cta-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 8px 24px var(--shadow-strong);
+            background: var(--soft-black);
         }
 
         .features {
@@ -174,7 +232,6 @@
         }
 
         .feature-text {
-            font-family: 'Inter', sans-serif;
             font-size: 0.7rem;
             color: var(--sage);
             font-weight: 400;
@@ -182,88 +239,579 @@
             text-transform: uppercase;
         }
 
-        /* Animations */
+        /* ===== UPLOAD SECTION ===== */
+        .upload-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem;
+        }
+
+        .upload-container {
+            max-width: 700px;
+            width: 100%;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .section-header h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 300;
+            color: var(--soft-black);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.03em;
+        }
+
+        .section-header p {
+            font-size: 0.75rem;
+            color: var(--sage);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .upload-card {
+            background: white;
+            border-radius: 2px;
+            padding: 2.5rem;
+            box-shadow: 0 4px 24px var(--shadow);
+            border: 1px solid var(--border-light);
+        }
+
+        .drop-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+            border: 2px dashed var(--border-light);
+            border-radius: 2px;
+            background: var(--cream);
+            cursor: pointer;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .drop-zone:hover {
+            border-color: var(--sage);
+            background: white;
+            transform: translateY(-2px);
+        }
+
+        .drop-zone.active {
+            border-color: var(--charcoal);
+            border-style: solid;
+            background: white;
+        }
+
+        .drop-zone.dragover {
+            border-color: var(--accent-gold);
+            background: rgba(212, 175, 55, 0.05);
+            transform: scale(1.01);
+        }
+
+        .drop-zone input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%; height: 100%;
+            cursor: pointer;
+        }
+
+        .drop-zone-icon {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.5rem;
+            color: var(--sage);
+            margin-bottom: 0.5rem;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            line-height: 1;
+        }
+
+        .drop-zone:hover .drop-zone-icon {
+            color: var(--charcoal);
+            transform: translateY(-8px);
+        }
+
+        .drop-zone.active .drop-zone-icon {
+            color: var(--success);
+        }
+
+        .drop-zone-text {
+            font-size: 0.875rem;
+            color: var(--sage);
+            letter-spacing: 0.05em;
+            transition: color 0.4s ease;
+            text-align: center;
+            padding: 0 1rem;
+        }
+
+        .drop-zone.active .drop-zone-text {
+            color: var(--charcoal);
+            font-weight: 500;
+        }
+
+        .image-info {
+            font-size: 0.7rem;
+            color: var(--sage);
+            margin-top: 0.5rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* Preview */
+        .preview-container {
+            margin-top: 1.5rem;
+            text-align: center;
+            display: none;
+        }
+
+        .preview-container.visible {
+            display: block;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .preview-container img {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 2px;
+            box-shadow: 0 4px 16px var(--shadow);
+            border: 1px solid var(--border-light);
+        }
+
+        .resize-warning {
+            display: none;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: rgba(212, 175, 55, 0.08);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 2px;
+            font-size: 0.75rem;
+            color: var(--charcoal);
+            text-align: center;
+        }
+
+        .resize-warning.visible {
+            display: block;
+        }
+
+        /* Enhance Button */
+        .enhance-btn {
+            display: block;
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 1.125rem 2.5rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            border: 2px solid var(--charcoal);
+            background: var(--charcoal);
+            color: white;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .enhance-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px var(--shadow-strong);
+            background: var(--soft-black);
+        }
+
+        .enhance-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ===== PROCESSING OVERLAY ===== */
+        .processing-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(250, 248, 243, 0.97);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(12px);
+        }
+
+        .processing-overlay.active {
+            display: flex;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .processing-content {
+            text-align: center;
+            max-width: 420px;
+            padding: 2rem;
+        }
+
+        .processing-spinner {
+            width: 80px; height: 80px;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .processing-spinner .ring {
+            position: absolute;
+            width: 100%; height: 100%;
+            border: 2px solid var(--border-light);
+            border-top-color: var(--charcoal);
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .processing-spinner .ring:nth-child(2) {
+            width: 60px; height: 60px;
+            top: 10px; left: 10px;
+            border-top-color: var(--sage);
+            animation-delay: -0.15s;
+            animation-direction: reverse;
+        }
+
+        .processing-spinner .ring:nth-child(3) {
+            width: 40px; height: 40px;
+            top: 20px; left: 20px;
+            border-top-color: var(--accent-gold);
+            animation-delay: -0.3s;
+        }
+
+        .processing-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.75rem;
+            font-weight: 300;
+            color: var(--soft-black);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .processing-subtitle {
+            font-size: 0.75rem;
+            color: var(--sage);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+        }
+
+        .progress-bar-container {
+            width: 260px;
+            height: 3px;
+            background: var(--border-light);
+            margin: 0 auto 1.5rem;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--charcoal);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .progress-text {
+            font-size: 0.7rem;
+            color: var(--sage);
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+        }
+
+        .processing-steps {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 0.75rem;
+            color: var(--sage);
+        }
+
+        .processing-steps li {
+            padding: 0.35rem 0;
+            transition: all 0.4s ease;
+            opacity: 0.4;
+        }
+
+        .processing-steps li.active {
+            opacity: 1;
+            color: var(--charcoal);
+            font-weight: 500;
+        }
+
+        .processing-steps li.done {
+            opacity: 0.6;
+            color: var(--sage);
+        }
+
+        .processing-steps li.done::before {
+            content: '✓ ';
+            color: var(--success);
+        }
+
+        .processing-timer {
+            font-size: 0.7rem;
+            color: var(--sage);
+            margin-top: 1.5rem;
+            letter-spacing: 0.1em;
+        }
+
+        /* ===== RESULTS SECTION ===== */
+        .results-section {
+            display: none;
+            min-height: 100vh;
+            padding: 6rem 2rem;
+        }
+
+        .results-section.visible {
+            display: block;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .results-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .results-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .results-header h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 300;
+            color: var(--soft-black);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.03em;
+        }
+
+        .results-header h2::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 1px;
+            background: var(--sage);
+            margin: 1.5rem auto 0;
+        }
+
+        .results-header p {
+            font-size: 0.75rem;
+            color: var(--sage);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-top: 1rem;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 2px;
+            padding: 2rem;
+            box-shadow: 0 4px 24px var(--shadow);
+            border: 1px solid var(--border-light);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .result-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px var(--shadow);
+        }
+
+        .result-card h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.375rem;
+            font-weight: 500;
+            color: var(--soft-black);
+            text-align: center;
+            margin-bottom: 1.5rem;
+            letter-spacing: 0.02em;
+        }
+
+        .result-card h3::after {
+            content: '';
+            display: block;
+            width: 40px;
+            height: 1px;
+            background: var(--sage);
+            margin: 0.75rem auto 0;
+        }
+
+        .result-card canvas,
+        .result-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 2px;
+            border: 1px solid var(--border-light);
+            display: block;
+        }
+
+        .result-card .dimensions {
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--sage);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 1rem;
+        }
+
+        .result-card:nth-child(2) h3::before {
+            content: '★ ';
+            color: var(--accent-gold);
+        }
+
+        .download-btn {
+            display: block;
+            width: fit-content;
+            margin: 1rem auto 0;
+            padding: 0.625rem 1.5rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--charcoal);
+            text-decoration: none;
+            border: 1px solid var(--border-light);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            border-color: var(--charcoal);
+            background: var(--cream);
+        }
+
+        .action-buttons {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .again-btn {
+            display: inline-block;
+            padding: 1.125rem 3rem;
+            background: var(--charcoal);
+            color: white;
+            text-decoration: none;
+            border: 2px solid var(--charcoal);
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 0.8125rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .again-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px var(--shadow-strong);
+            background: var(--soft-black);
+        }
+
+        /* ===== ERROR MESSAGE ===== */
+        .error-msg {
+            display: none;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            background: rgba(155, 59, 59, 0.08);
+            border: 1px solid rgba(155, 59, 59, 0.3);
+            border-radius: 2px;
+            font-size: 0.75rem;
+            color: var(--error);
+            text-align: center;
+        }
+
+        .error-msg.visible {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* ===== CANVAS (hidden, for processing) ===== */
+        .hidden-canvas { display: none; }
+
+        /* ===== ANIMATIONS ===== */
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 900px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
             }
         }
 
-        /* Responsive */
         @media (max-width: 768px) {
-            body {
-                padding: 1.5rem;
-            }
-
-            h1 {
-                font-size: 4rem;
-            }
-
-            .description {
-                font-size: 0.9rem;
-                margin-bottom: 3rem;
-            }
-
-            .cta-button {
-                padding: 1rem 3rem;
-                margin-bottom: 4rem;
-            }
-
-            .features {
-                gap: 3rem;
-            }
-
-            .feature-number {
-                font-size: 2rem;
-            }
+            .hero h1 { font-size: 4rem; }
+            .features { gap: 3rem; }
+            .feature-number { font-size: 2rem; }
+            .upload-card { padding: 1.5rem; }
+            .cta-button { padding: 1rem 3rem; margin-bottom: 4rem; }
         }
 
         @media (max-width: 480px) {
-            h1 {
-                font-size: 3rem;
-            }
-
-            .subtitle {
-                font-size: 0.65rem;
-            }
-
-            .description {
-                font-size: 0.85rem;
-            }
-
-            .cta-button {
-                padding: 0.875rem 2rem;
-                font-size: 0.75rem;
-            }
-
-            .features {
-                gap: 2rem;
-            }
-
-            .feature-number {
-                font-size: 1.75rem;
-            }
-
-            .feature-text {
-                font-size: 0.65rem;
-            }
+            .hero h1 { font-size: 3rem; }
+            .hero .subtitle { font-size: 0.65rem; }
+            .features { gap: 2rem; }
+            .feature-number { font-size: 1.75rem; }
+            .feature-text { font-size: 0.65rem; }
+            .cta-button { padding: 0.875rem 2rem; font-size: 0.75rem; }
+            .upload-card { padding: 1.25rem; }
+            .result-card { padding: 1.25rem; }
         }
     </style>
 </head>
 <body>
-    <main class="landing-container">
-        <section class="hero">
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <a href="#" class="nav-logo">Enhance</a>
+        <div class="nav-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Initializing</span>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="hero-content">
             <h1>Enhance</h1>
             <p class="subtitle">AI-Powered Image Enhancement</p>
-            <p class="description">Transform your images with advanced super-resolution technology. 4x upscaling with neural networks. Large images auto-resized.</p>
-
-            <a href="/upload" class="cta-button">Start Enhancing</a>
-
+            <p class="description">Transform your images with advanced super-resolution technology. 4x upscaling powered by ESRGAN neural network.</p>
+            <div class="privacy-badge">
+                🔒 Runs entirely in your browser — your images never leave your device
+            </div>
+            <br>
+            <a href="#upload" class="cta-button">Start Enhancing</a>
             <div class="features">
                 <div class="feature">
                     <span class="feature-number">4×</span>
@@ -271,14 +819,577 @@
                 </div>
                 <div class="feature">
                     <span class="feature-number">∞</span>
-                    <span class="feature-text">Any Size</span>
+                    <span class="feature-text">Privacy</span>
                 </div>
                 <div class="feature">
                     <span class="feature-number">AI</span>
                     <span class="feature-text">Powered</span>
                 </div>
             </div>
-        </section>
-    </main>
+        </div>
+    </section>
+
+    <!-- Upload Section -->
+    <section class="upload-section" id="upload">
+        <div class="upload-container">
+            <div class="section-header">
+                <h2>Upload Image</h2>
+                <p>PNG, JPG, JPEG — Max 500×500 for best performance</p>
+            </div>
+
+            <div class="upload-card">
+                <div class="drop-zone" id="drop-zone">
+                    <input type="file" id="file-input" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+                    <div class="drop-zone-icon" id="drop-icon">↑</div>
+                    <div class="drop-zone-text" id="drop-text">Drop image here or click to upload</div>
+                    <div class="image-info" id="image-info"></div>
+                </div>
+
+                <div class="preview-container" id="preview-container">
+                    <img id="preview-image" src="" alt="Preview">
+                </div>
+
+                <div class="resize-warning" id="resize-warning">
+                    ⚠ Image will be resized to fit within 500×500 for browser processing.
+                    Output will be 4× the processed size.
+                </div>
+
+                <div class="error-msg" id="error-msg"></div>
+
+                <button class="enhance-btn" id="enhance-btn" disabled>
+                    Select an image first
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section" id="results-section">
+        <div class="results-container">
+            <div class="results-header">
+                <h2>Enhancement Complete</h2>
+                <p id="results-info"></p>
+            </div>
+
+            <div class="results-grid">
+                <div class="result-card">
+                    <h3>Original</h3>
+                    <canvas id="original-canvas"></canvas>
+                    <div class="dimensions" id="original-dims"></div>
+                </div>
+                <div class="result-card">
+                    <h3>Enhanced</h3>
+                    <canvas id="enhanced-canvas"></canvas>
+                    <div class="dimensions" id="enhanced-dims"></div>
+                    <a class="download-btn" id="download-btn" download="enhanced.png">
+                        ↓ Download Enhanced
+                    </a>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="again-btn" id="again-btn">Process Another Image</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Processing Overlay -->
+    <div class="processing-overlay" id="processing-overlay">
+        <div class="processing-content">
+            <div class="processing-spinner">
+                <div class="ring"></div>
+                <div class="ring"></div>
+                <div class="ring"></div>
+            </div>
+            <div class="processing-title" id="proc-title">Enhancing</div>
+            <div class="processing-subtitle" id="proc-subtitle">AI Super-Resolution in Progress</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progress-bar"></div>
+            </div>
+            <div class="progress-text" id="progress-text">0%</div>
+            <ul class="processing-steps">
+                <li id="step-model">Loading AI model...</li>
+                <li id="step-prepare">Preparing image...</li>
+                <li id="step-enhance">Enhancing tiles...</li>
+                <li id="step-stitch">Stitching result...</li>
+            </ul>
+            <div class="processing-timer" id="proc-timer">Elapsed: 0s</div>
+        </div>
+    </div>
+
+    <!-- Hidden canvases for processing -->
+    <canvas class="hidden-canvas" id="work-canvas"></canvas>
+
+    <!-- JavaScript -->
+    <script>
+    (function() {
+        'use strict';
+
+        // ===== CONFIG =====
+        const MODEL_URL = 'https://huggingface.co/SANJAI25/onnx_model/resolve/main/esrgan.onnx';
+        const DATA_URL = 'https://huggingface.co/SANJAI25/onnx_model/resolve/main/esrgan.onnx.data';
+        const MAX_DIMENSION = 500;
+        const TILE_SIZE = 128;
+        const OVERLAP = 8;
+        const SCALE = 4;
+
+        // ===== STATE =====
+        let session = null;
+        let inputName = '';
+        let outputName = '';
+        let selectedFile = null;
+        let isModelLoading = false;
+        let timerInterval = null;
+
+        // ===== DOM ELEMENTS =====
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const fileInput = document.getElementById('file-input');
+        const dropZone = document.getElementById('drop-zone');
+        const dropIcon = document.getElementById('drop-icon');
+        const dropText = document.getElementById('drop-text');
+        const imageInfo = document.getElementById('image-info');
+        const previewContainer = document.getElementById('preview-container');
+        const previewImage = document.getElementById('preview-image');
+        const resizeWarning = document.getElementById('resize-warning');
+        const errorMsg = document.getElementById('error-msg');
+        const enhanceBtn = document.getElementById('enhance-btn');
+        const overlay = document.getElementById('processing-overlay');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const procTitle = document.getElementById('proc-title');
+        const procSubtitle = document.getElementById('proc-subtitle');
+        const procTimer = document.getElementById('proc-timer');
+        const resultsSection = document.getElementById('results-section');
+        const originalCanvas = document.getElementById('original-canvas');
+        const enhancedCanvas = document.getElementById('enhanced-canvas');
+        const originalDims = document.getElementById('original-dims');
+        const enhancedDims = document.getElementById('enhanced-dims');
+        const resultsInfo = document.getElementById('results-info');
+        const downloadBtn = document.getElementById('download-btn');
+        const againBtn = document.getElementById('again-btn');
+        const workCanvas = document.getElementById('work-canvas');
+
+        // ===== ONNX RUNTIME SETUP =====
+        ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/';
+
+        // ===== MODEL LOADING =====
+        async function fetchWithProgress(url, label) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch ${label}: ${response.status}`);
+
+            const contentLength = response.headers.get('content-length');
+            const total = contentLength ? parseInt(contentLength, 10) : 0;
+            const reader = response.body.getReader();
+            const chunks = [];
+            let received = 0;
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                received += value.length;
+                if (total > 0) {
+                    const pct = Math.round((received / total) * 100);
+                    updateProgress(pct * 0.4, `Downloading ${label}... ${pct}%`);
+                }
+            }
+
+            const allChunks = new Uint8Array(received);
+            let position = 0;
+            for (const chunk of chunks) {
+                allChunks.set(chunk, position);
+                position += chunk.length;
+            }
+            return allChunks.buffer;
+        }
+
+        async function loadModel() {
+            if (session) return; // Already loaded
+            if (isModelLoading) return;
+            isModelLoading = true;
+
+            setStatus('loading', 'Loading model...');
+
+            try {
+                // Download model graph file (~2MB)
+                updateProgress(0, 'Downloading model graph...');
+                const modelBuffer = await fetchWithProgress(MODEL_URL, 'model');
+
+                // Download weights file (~65MB)
+                updateProgress(5, 'Downloading model weights...');
+                const dataBuffer = await fetchWithProgress(DATA_URL, 'weights');
+
+                updateProgress(45, 'Initializing AI engine...');
+
+                // Create ONNX session with external data
+                const sessionOptions = {
+                    executionProviders: ['wasm'],
+                    graphOptimizationLevel: 'all'
+                };
+
+                session = await ort.InferenceSession.create(
+                    new Uint8Array(modelBuffer),
+                    {
+                        ...sessionOptions,
+                        externalData: [{
+                            data: new Uint8Array(dataBuffer),
+                            path: 'esrgan.onnx.data'
+                        }]
+                    }
+                );
+
+                inputName = session.inputNames[0];
+                outputName = session.outputNames[0];
+
+                console.log(`ONNX model loaded. Input: ${inputName}, Output: ${outputName}`);
+                setStatus('ready', 'Model ready');
+                updateProgress(50, 'Model loaded');
+            } catch (err) {
+                console.error('Model loading error:', err);
+                setStatus('error', 'Model failed');
+                throw new Error(`Failed to load AI model: ${err.message}`);
+            } finally {
+                isModelLoading = false;
+            }
+        }
+
+        // ===== IMAGE PROCESSING =====
+        function imageDataToFloat32(imageData) {
+            const { data, width, height } = imageData;
+            const float32 = new Float32Array(3 * height * width);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const pi = (y * width + x) * 4;
+                    float32[0 * height * width + y * width + x] = data[pi]     / 255.0; // R
+                    float32[1 * height * width + y * width + x] = data[pi + 1] / 255.0; // G
+                    float32[2 * height * width + y * width + x] = data[pi + 2] / 255.0; // B
+                }
+            }
+            return float32;
+        }
+
+        function float32ToImageData(float32, width, height) {
+            const imageData = new ImageData(width, height);
+            const out = imageData.data;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const pi = (y * width + x) * 4;
+                    out[pi]     = Math.round(Math.min(1, Math.max(0, float32[0 * height * width + y * width + x])) * 255);
+                    out[pi + 1] = Math.round(Math.min(1, Math.max(0, float32[1 * height * width + y * width + x])) * 255);
+                    out[pi + 2] = Math.round(Math.min(1, Math.max(0, float32[2 * height * width + y * width + x])) * 255);
+                    out[pi + 3] = 255;
+                }
+            }
+            return imageData;
+        }
+
+        async function processTile(tileImageData, tileW, tileH) {
+            const inputData = imageDataToFloat32(tileImageData);
+            const inputTensor = new ort.Tensor('float32', inputData, [1, 3, tileH, tileW]);
+
+            const feeds = {};
+            feeds[inputName] = inputTensor;
+            const results = await session.run(feeds);
+            const output = results[outputName];
+
+            const outH = output.dims[2];
+            const outW = output.dims[3];
+            const outputImageData = float32ToImageData(output.data, outW, outH);
+
+            return { imageData: outputImageData, width: outW, height: outH };
+        }
+
+        async function enhanceImage(sourceCanvas) {
+            const ctx = sourceCanvas.getContext('2d');
+            const w = sourceCanvas.width;
+            const h = sourceCanvas.height;
+
+            const outW = w * SCALE;
+            const outH = h * SCALE;
+
+            // Setup output canvas
+            enhancedCanvas.width = outW;
+            enhancedCanvas.height = outH;
+            const outCtx = enhancedCanvas.getContext('2d');
+
+            // Calculate tiles
+            const tilesX = Math.ceil(w / (TILE_SIZE - OVERLAP));
+            const tilesY = Math.ceil(h / (TILE_SIZE - OVERLAP));
+            const totalTiles = tilesX * tilesY;
+            let tileCount = 0;
+
+            for (let ty = 0; ty < h; ty += TILE_SIZE - OVERLAP) {
+                for (let tx = 0; tx < w; tx += TILE_SIZE - OVERLAP) {
+                    const tileW = Math.min(TILE_SIZE, w - tx);
+                    const tileH = Math.min(TILE_SIZE, h - ty);
+
+                    // Extract tile
+                    const tileData = ctx.getImageData(tx, ty, tileW, tileH);
+
+                    // Process tile
+                    const result = await processTile(tileData, tileW, tileH);
+
+                    // Place on output canvas
+                    const outX = tx * SCALE;
+                    const outY = ty * SCALE;
+                    outCtx.putImageData(result.imageData, outX, outY);
+
+                    tileCount++;
+                    const pct = 55 + Math.round((tileCount / totalTiles) * 40);
+                    updateProgress(pct, `Enhancing tile ${tileCount}/${totalTiles}...`);
+
+                    // Yield to keep UI responsive
+                    await new Promise(r => setTimeout(r, 10));
+                }
+            }
+        }
+
+        // ===== UI HELPERS =====
+        function setStatus(state, text) {
+            statusDot.className = 'status-dot ' + state;
+            statusText.textContent = text;
+        }
+
+        function updateProgress(pct, text) {
+            progressBar.style.width = pct + '%';
+            progressText.textContent = text || (pct + '%');
+        }
+
+        function setStep(stepId) {
+            const steps = ['step-model', 'step-prepare', 'step-enhance', 'step-stitch'];
+            const idx = steps.indexOf(stepId);
+            steps.forEach((id, i) => {
+                const el = document.getElementById(id);
+                el.className = '';
+                if (i < idx) el.classList.add('done');
+                else if (i === idx) el.classList.add('active');
+            });
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('visible');
+        }
+
+        function hideError() {
+            errorMsg.classList.remove('visible');
+        }
+
+        function startTimer() {
+            let elapsed = 0;
+            timerInterval = setInterval(() => {
+                elapsed++;
+                const mins = Math.floor(elapsed / 60);
+                const secs = elapsed % 60;
+                procTimer.textContent = mins > 0
+                    ? `Elapsed: ${mins}m ${secs}s`
+                    : `Elapsed: ${secs}s`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // ===== EVENT HANDLERS =====
+
+        // File selection
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleFileSelect(e) {
+            const file = e.target.files ? e.target.files[0] : null;
+            if (!file) return;
+
+            hideError();
+
+            if (!file.type.match(/^image\/(jpeg|png|jpg)$/)) {
+                showError('Please select a PNG, JPG, or JPEG image.');
+                return;
+            }
+
+            if (file.size > 50 * 1024 * 1024) {
+                showError('File is too large. Maximum size is 50MB.');
+                return;
+            }
+
+            selectedFile = file;
+            dropZone.classList.add('active');
+            dropIcon.textContent = '✓';
+            dropText.textContent = file.name;
+
+            // Load preview
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const img = new Image();
+                img.onload = function() {
+                    previewImage.src = ev.target.result;
+                    previewContainer.classList.add('visible');
+
+                    const infoText = `${img.naturalWidth} × ${img.naturalHeight} — ${(file.size / 1024).toFixed(0)} KB`;
+                    imageInfo.textContent = infoText;
+
+                    if (img.naturalWidth > MAX_DIMENSION || img.naturalHeight > MAX_DIMENSION) {
+                        resizeWarning.classList.add('visible');
+                    } else {
+                        resizeWarning.classList.remove('visible');
+                    }
+
+                    enhanceBtn.disabled = false;
+                    enhanceBtn.textContent = 'Enhance Image';
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Drag and drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect({ target: fileInput });
+            }
+        });
+
+        // Enhance button
+        enhanceBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            hideError();
+
+            // Show processing overlay
+            overlay.classList.add('active');
+            updateProgress(0, 'Starting...');
+            setStep('step-model');
+            startTimer();
+
+            try {
+                // Step 1: Load model (if not already loaded)
+                procTitle.textContent = 'Loading Model';
+                procSubtitle.textContent = 'Downloading AI from HuggingFace';
+                setStep('step-model');
+                await loadModel();
+
+                // Step 2: Prepare image
+                procTitle.textContent = 'Preparing';
+                procSubtitle.textContent = 'Processing Your Image';
+                setStep('step-prepare');
+                updateProgress(50, 'Preparing image...');
+
+                const img = new Image();
+                await new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = () => reject(new Error('Failed to load image'));
+                    img.src = URL.createObjectURL(selectedFile);
+                });
+
+                let procW = img.naturalWidth;
+                let procH = img.naturalHeight;
+
+                // Resize if too large
+                if (Math.max(procW, procH) > MAX_DIMENSION) {
+                    const scale = MAX_DIMENSION / Math.max(procW, procH);
+                    procW = Math.floor(procW * scale);
+                    procH = Math.floor(procH * scale);
+                }
+
+                // Draw original to work canvas (resized)
+                workCanvas.width = procW;
+                workCanvas.height = procH;
+                const wCtx = workCanvas.getContext('2d');
+                wCtx.drawImage(img, 0, 0, procW, procH);
+
+                // Draw original to display canvas
+                originalCanvas.width = procW;
+                originalCanvas.height = procH;
+                const oCtx = originalCanvas.getContext('2d');
+                oCtx.drawImage(img, 0, 0, procW, procH);
+                originalDims.textContent = `${procW} × ${procH}`;
+
+                URL.revokeObjectURL(img.src);
+
+                // Step 3: Enhance
+                procTitle.textContent = 'Enhancing';
+                procSubtitle.textContent = 'AI Super-Resolution in Progress';
+                setStep('step-enhance');
+                updateProgress(55, 'Starting enhancement...');
+
+                await enhanceImage(workCanvas);
+
+                // Step 4: Finalize
+                procTitle.textContent = 'Finalizing';
+                procSubtitle.textContent = 'Almost Done';
+                setStep('step-stitch');
+                updateProgress(98, 'Finalizing...');
+
+                const eW = enhancedCanvas.width;
+                const eH = enhancedCanvas.height;
+                enhancedDims.textContent = `${eW} × ${eH}`;
+                resultsInfo.textContent = `${procW}×${procH} → ${eW}×${eH} (${SCALE}× upscaled)`;
+
+                // Setup download
+                downloadBtn.href = enhancedCanvas.toDataURL('image/png');
+
+                updateProgress(100, 'Complete!');
+                await new Promise(r => setTimeout(r, 500));
+
+                // Show results
+                stopTimer();
+                overlay.classList.remove('active');
+                resultsSection.classList.add('visible');
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                console.error('Enhancement error:', err);
+                stopTimer();
+                overlay.classList.remove('active');
+                showError(`Error: ${err.message}`);
+            }
+        });
+
+        // Process another
+        againBtn.addEventListener('click', () => {
+            resultsSection.classList.remove('visible');
+            selectedFile = null;
+            fileInput.value = '';
+            dropZone.classList.remove('active');
+            dropIcon.textContent = '↑';
+            dropText.textContent = 'Drop image here or click to upload';
+            imageInfo.textContent = '';
+            previewContainer.classList.remove('visible');
+            resizeWarning.classList.remove('visible');
+            enhanceBtn.disabled = true;
+            enhanceBtn.textContent = 'Select an image first';
+            hideError();
+
+            document.getElementById('upload').scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // ===== STARTUP =====
+        // Start loading model in the background
+        setStatus('loading', 'Loading model...');
+        loadModel()
+            .then(() => setStatus('ready', 'Model ready'))
+            .catch(() => setStatus('error', 'Click enhance to retry'));
+
+    })();
+    </script>
 </body>
 </html>
