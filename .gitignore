@@ -51,10 +51,11 @@ static/results/*
 !static/uploads/.gitkeep
 !static/results/.gitkeep
 
-# Model Files (too large for git)
+# Model Files (too large for git, auto-downloaded from HuggingFace)
 models/*.pth
 *.onnx
 *.onnx.data
+onnx_model/
 
 # Testing
 .pytest_cache/

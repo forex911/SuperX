@@ -3,13 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Enhancement</title>
+    <title>AI Image Enhancement — Upload</title>
+    <meta name="description" content="Upload your image for AI-powered 4x super-resolution enhancement using ESRGAN neural network.">
 
     <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+
+    <style>
+        /* Enhanced Loading Overlay */
+        .processing-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(250, 248, 243, 0.97);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            backdrop-filter: blur(8px);
+        }
+
+        .processing-overlay.active {
+            display: flex;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .processing-content {
+            text-align: center;
+            max-width: 400px;
+            padding: 2rem;
+        }
+
+        .processing-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .processing-icon .ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #E0DED8;
+            border-top-color: #2A2A2A;
+            border-radius: 50%;
+            animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .processing-icon .ring:nth-child(2) {
+            width: 60px;
+            height: 60px;
+            top: 10px;
+            left: 10px;
+            border-top-color: #B8B5A8;
+            animation-delay: -0.15s;
+            animation-direction: reverse;
+        }
+
+        .processing-icon .ring:nth-child(3) {
+            width: 40px;
+            height: 40px;
+            top: 20px;
+            left: 20px;
+            border-top-color: #D4AF37;
+            animation-delay: -0.3s;
+        }
+
+        .processing-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.75rem;
+            font-weight: 300;
+            color: #1A1A1A;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .processing-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            color: #B8B5A8;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+        }
+
+        .processing-progress {
+            width: 200px;
+            height: 2px;
+            background: #E0DED8;
+            margin: 0 auto 1.5rem;
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .processing-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #2A2A2A, #B8B5A8, #2A2A2A);
+            background-size: 200% 100%;
+            animation: shimmer 2s ease-in-out infinite;
+            width: 100%;
+        }
+
+        .processing-steps {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            color: #B8B5A8;
+        }
+
+        .processing-steps li {
+            padding: 0.35rem 0;
+            transition: all 0.4s ease;
+            opacity: 0.4;
+        }
+
+        .processing-steps li.active {
+            opacity: 1;
+            color: #2A2A2A;
+            font-weight: 500;
+        }
+
+        .processing-steps li.done {
+            opacity: 0.6;
+            color: #B8B5A8;
+        }
+
+        .processing-steps li.done::before {
+            content: '✓ ';
+            color: #2A2A2A;
+        }
+
+        .processing-timer {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.7rem;
+            color: #B8B5A8;
+            margin-top: 1.5rem;
+            letter-spacing: 0.1em;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
 </head>
 <body>
 
@@ -46,17 +200,33 @@
             </div>
 
             <!-- Submit Button -->
-            <button type="submit" class="btn btn-primary w-100 mt-3">
+            <button type="submit" id="enhance-btn" class="btn btn-primary w-100 mt-3">
                 Enhance Image
             </button>
         </form>
+    </div>
+</div>
 
-        <!-- Loading Spinner -->
-        <div class="d-flex justify-content-center mt-3">
-            <div class="spinner-border text-primary" id="loading-spinner" role="status" style="display:none;">
-                <span class="visually-hidden">Loading...</span>
-            </div>
+<!-- Processing Overlay -->
+<div class="processing-overlay" id="processing-overlay">
+    <div class="processing-content">
+        <div class="processing-icon">
+            <div class="ring"></div>
+            <div class="ring"></div>
+            <div class="ring"></div>
         </div>
+        <div class="processing-title">Enhancing</div>
+        <div class="processing-subtitle">AI Super-Resolution in Progress</div>
+        <div class="processing-progress">
+            <div class="processing-progress-bar"></div>
+        </div>
+        <ul class="processing-steps">
+            <li id="step-upload" class="active">Uploading image...</li>
+            <li id="step-process">Processing with ESRGAN model...</li>
+            <li id="step-enhance">Applying 4× enhancement...</li>
+            <li id="step-finalize">Finalizing result...</li>
+        </ul>
+        <div class="processing-timer" id="processing-timer">Elapsed: 0s</div>
     </div>
 </div>
 
@@ -83,9 +253,43 @@ fileInput.addEventListener("change", function () {
     reader.readAsDataURL(file);
 });
 
-// Show loading spinner on submit
+// Processing overlay logic
 document.getElementById("upload-form").addEventListener("submit", function () {
-    document.getElementById("loading-spinner").style.display = "block";
+    const overlay = document.getElementById("processing-overlay");
+    overlay.classList.add("active");
+
+    let elapsed = 0;
+    const timerEl = document.getElementById("processing-timer");
+
+    // Update elapsed time
+    const timerInterval = setInterval(() => {
+        elapsed++;
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        timerEl.textContent = mins > 0 
+            ? `Elapsed: ${mins}m ${secs}s` 
+            : `Elapsed: ${secs}s`;
+    }, 1000);
+
+    // Simulate step progression
+    const steps = [
+        { id: "step-upload", delay: 2000 },
+        { id: "step-process", delay: 6000 },
+        { id: "step-enhance", delay: 15000 },
+        { id: "step-finalize", delay: 25000 }
+    ];
+
+    steps.forEach((step, index) => {
+        setTimeout(() => {
+            // Mark previous steps as done
+            for (let i = 0; i < index; i++) {
+                document.getElementById(steps[i].id).classList.remove("active");
+                document.getElementById(steps[i].id).classList.add("done");
+            }
+            // Mark current step as active
+            document.getElementById(step.id).classList.add("active");
+        }, step.delay);
+    });
 });
 </script>
 

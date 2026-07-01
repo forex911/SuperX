@@ -1,6 +1,7 @@
 flask
-torch
-torchvision
+onnxruntime
 numpy
 pillow
-opencv-python
+opencv-python-headless
+requests
+gunicorn

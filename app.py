@@ -1,11 +1,11 @@
 import os
 import uuid
-import torch
 import numpy as np
 import cv2
+import requests
+import onnxruntime as ort
 from flask import Flask, request, render_template, send_from_directory, url_for, flash, redirect
 from werkzeug.utils import secure_filename
-import RRDBNet_arch as arch
 
 # Make sure we're looking for templates in the right place
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
@@ -17,45 +17,101 @@ app.secret_key = "super_secret_key_for_image_enhancement"
 app.config['UPLOAD_FOLDER'] = os.path.join(static_dir, 'uploads')
 app.config['RESULTS_FOLDER'] = os.path.join(static_dir, 'results')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Increased to 50MB
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
 # Ensure directories exist
 os.makedirs(static_dir, exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)
 
-# Create the upload and results folders if they don't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['RESULTS_FOLDER'], exist_ok=True)
+# --- ONNX Model Setup ---
+MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'onnx_model'))
+ONNX_MODEL_PATH = os.path.join(MODEL_DIR, 'esrgan.onnx')
+ONNX_DATA_PATH = os.path.join(MODEL_DIR, 'esrgan.onnx.data')
 
-# Check if CUDA is available, else use CPU
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f"Using device: {device}")
+# HuggingFace model URLs
+ONNX_MODEL_URL = "https://huggingface.co/SANJAI25/onnx_model/resolve/main/esrgan.onnx"
+ONNX_DATA_URL = "https://huggingface.co/SANJAI25/onnx_model/resolve/main/esrgan.onnx.data"
 
-# Load the pre-trained model
-model_path = 'models/RRDB_ESRGAN_x4.pth'
-model = arch.RRDBNet(3, 3, 64, 23, gc=32)
-model.load_state_dict(torch.load(model_path, map_location=device), strict=True)
-model.eval()
-model = model.to(device)
-print(f"Model loaded from: {model_path}")
+
+def download_file(url, dest_path):
+    """Download a file from URL to destination path with progress."""
+    print(f"Downloading {url} ...")
+    response = requests.get(url, stream=True, timeout=300)
+    response.raise_for_status()
+    total_size = int(response.headers.get('content-length', 0))
+    downloaded = 0
+    with open(dest_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total_size > 0:
+                    pct = (downloaded / total_size) * 100
+                    print(f"  Progress: {pct:.1f}% ({downloaded}/{total_size} bytes)", end='\r')
+    print(f"\nDownloaded to: {dest_path} ({downloaded} bytes)")
+
+
+def load_onnx_model():
+    """Download ONNX model from HuggingFace if not cached, then load it."""
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    # Download model file if not present
+    if not os.path.exists(ONNX_MODEL_PATH):
+        print(f"ONNX model not found at {ONNX_MODEL_PATH}. Downloading from HuggingFace...")
+        download_file(ONNX_MODEL_URL, ONNX_MODEL_PATH)
+    else:
+        print(f"ONNX model found at {ONNX_MODEL_PATH}")
+
+    # Download data file if not present (contains the weights)
+    if not os.path.exists(ONNX_DATA_PATH):
+        print(f"ONNX data file not found at {ONNX_DATA_PATH}. Downloading from HuggingFace...")
+        download_file(ONNX_DATA_URL, ONNX_DATA_PATH)
+    else:
+        print(f"ONNX data file found at {ONNX_DATA_PATH}")
+
+    # Create ONNX Runtime session
+    print("Loading ONNX Runtime session...")
+    session_options = ort.SessionOptions()
+    session_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+
+    # Use CPU execution provider (works on all deployment platforms)
+    session = ort.InferenceSession(
+        ONNX_MODEL_PATH,
+        sess_options=session_options,
+        providers=['CPUExecutionProvider']
+    )
+
+    input_name = session.get_inputs()[0].name
+    output_name = session.get_outputs()[0].name
+    print(f"ONNX model loaded. Input: '{input_name}', Output: '{output_name}'")
+    return session, input_name, output_name
+
+
+# Load the ONNX model at startup
+session, input_name, output_name = load_onnx_model()
+
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
 
 @app.errorhandler(413)
 def too_large(e):
     flash('File is too large. Maximum file size is 50MB.')
     return redirect(url_for('index'))
 
+
 @app.route('/')
 def landing():
     return render_template('landing.html')
 
+
 @app.route('/upload')
 def index():
     return render_template('index.html')
+
 
 @app.route('/enhance', methods=['POST'])
 def enhance_image():
@@ -142,23 +198,26 @@ def enhance_image():
                     
                     tile = img[tile_h_start:tile_h_end, tile_w_start:tile_w_end, :]
                     
-                    # Preprocess tile
-                    tile_normalized = tile * 1.0 / 255
-                    tile_tensor = torch.from_numpy(np.transpose(tile_normalized[:, :, [2, 1, 0]], (2, 0, 1))).float()
-                    tile_tensor = tile_tensor.unsqueeze(0).to(device)
+                    # Preprocess tile for ONNX: normalize and convert BGR->RGB, NCHW format
+                    tile_normalized = tile.astype(np.float32) / 255.0
+                    tile_input = np.transpose(tile_normalized[:, :, [2, 1, 0]], (2, 0, 1))  # BGR->RGB, HWC->CHW
+                    tile_input = np.expand_dims(tile_input, axis=0)  # Add batch dimension: (1, 3, H, W)
                     
-                    # Run inference
-                    with torch.no_grad():
-                        try:
-                            tile_output = model(tile_tensor).data.squeeze().float().cpu().clamp_(0, 1).numpy()
-                        except RuntimeError as mem_error:
-                            if "memory" in str(mem_error).lower():
-                                flash('Out of memory. Try a smaller image or close other applications.')
-                                return redirect(url_for('index'))
-                            else:
-                                raise
+                    # Run ONNX inference
+                    try:
+                        tile_output = session.run(
+                            [output_name],
+                            {input_name: tile_input}
+                        )[0]
+                    except Exception as infer_error:
+                        print(f"Inference error: {infer_error}")
+                        flash('Error during image enhancement. Try a smaller image.')
+                        return redirect(url_for('index'))
                     
-                    tile_output = np.transpose(tile_output[[2, 1, 0], :, :], (1, 2, 0))
+                    # Post-process: squeeze batch dim, clip, convert back to uint8
+                    tile_output = np.squeeze(tile_output, axis=0)  # Remove batch dim: (3, H, W)
+                    tile_output = np.clip(tile_output, 0, 1)
+                    tile_output = np.transpose(tile_output[[2, 1, 0], :, :], (1, 2, 0))  # RGB->BGR, CHW->HWC
                     tile_output = (tile_output * 255.0).round().astype(np.uint8)
                     
                     # Calculate output position
@@ -176,9 +235,6 @@ def enhance_image():
                     
                     tile_count += 1
                     print(f"Processed tile {tile_count}/{total_tiles}")
-                    
-                    # Clear tensor from GPU/CPU memory
-                    del tile_tensor, tile_output
             
             print(f"All {tile_count} tiles processed. Stitching image...")
             
