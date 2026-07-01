@@ -1,0 +1,245 @@
+/* Aesthetic Minimalist Landing Page */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@200;300;400;500;600&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --cream: #FAF8F3;
+    --beige: #E8E4DC;
+    --sage: #B8B5A8;
+    --charcoal: #2A2A2A;
+    --soft-black: #1A1A1A;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--cream);
+    color: var(--charcoal);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    padding: 2rem;
+}
+
+/* Subtle background pattern */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 0, 0, 0.01) 2px,
+            rgba(0, 0, 0, 0.01) 4px
+        );
+    pointer-events: none;
+    z-index: 0;
+}
+
+.landing-container {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.hero {
+    text-align: center;
+    animation: fadeInUp 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(4rem, 12vw, 9rem);
+    font-weight: 300;
+    color: var(--soft-black);
+    margin-bottom: 1rem;
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+}
+
+.subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.75rem;
+    color: var(--sage);
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 3rem;
+}
+
+.description {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    color: var(--charcoal);
+    font-weight: 300;
+    line-height: 1.8;
+    max-width: 500px;
+    margin: 0 auto 4rem;
+    opacity: 0.8;
+}
+
+.cta-button {
+    font-family: 'Inter', sans-serif;
+    display: inline-block;
+    padding: 1.25rem 4rem;
+    background: var(--charcoal);
+    color: white;
+    text-decoration: none;
+    border: 2px solid var(--charcoal);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 6rem;
+}
+
+.cta-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--soft-black);
+    transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: -1;
+}
+
+.cta-button:hover::before {
+    left: 0;
+}
+
+.cta-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.features {
+    display: flex;
+    justify-content: center;
+    gap: 5rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.feature {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.feature-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.5rem;
+    font-weight: 400;
+    color: var(--soft-black);
+    line-height: 1;
+}
+
+.feature-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    color: var(--sage);
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+/* Decorative line */
+h1::after {
+    content: '';
+    display: block;
+    width: 80px;
+    height: 1px;
+    background: var(--sage);
+    margin: 2rem auto 0;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    body {
+        padding: 1.5rem;
+    }
+
+    h1 {
+        font-size: 4rem;
+    }
+
+    .description {
+        font-size: 0.9rem;
+        margin-bottom: 3rem;
+    }
+
+    .cta-button {
+        padding: 1rem 3rem;
+        margin-bottom: 4rem;
+    }
+
+    .features {
+        gap: 3rem;
+    }
+
+    .feature-number {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 3rem;
+    }
+
+    .subtitle {
+        font-size: 0.65rem;
+    }
+
+    .description {
+        font-size: 0.85rem;
+    }
+
+    .cta-button {
+        padding: 0.875rem 2rem;
+        font-size: 0.75rem;
+    }
+
+    .features {
+        gap: 2rem;
+    }
+
+    .feature-number {
+        font-size: 1.75rem;
+    }
+
+    .feature-text {
+        font-size: 0.65rem;
+    }
+}

@@ -17,7 +17,7 @@ app.secret_key = "super_secret_key_for_image_enhancement"
 app.config['UPLOAD_FOLDER'] = os.path.join(static_dir, 'uploads')
 app.config['RESULTS_FOLDER'] = os.path.join(static_dir, 'results')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit to 16MB
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Increased to 50MB
 
 # Ensure directories exist
 os.makedirs(static_dir, exist_ok=True)
@@ -44,7 +44,16 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+@app.errorhandler(413)
+def too_large(e):
+    flash('File is too large. Maximum file size is 50MB.')
+    return redirect(url_for('index'))
+
 @app.route('/')
+def landing():
+    return render_template('landing.html')
+
+@app.route('/upload')
 def index():
     return render_template('index.html')
 
@@ -86,19 +95,121 @@ def enhance_image():
             if img is None:
                 flash('Error reading uploaded image. The file might be corrupted.')
                 return redirect(url_for('index'))
+            
+            h, w = img.shape[:2]
+            print(f"Original image size: {w}x{h}")
+            
+            # Automatically resize if image is too large
+            max_input_dimension = 2000
+            if max(h, w) > max_input_dimension:
+                scale = max_input_dimension / max(h, w)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                print(f"Resizing from {w}x{h} to {new_w}x{new_h}")
+                img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+                h, w = new_h, new_w
+                flash(f'Image automatically resized to {w}x{h} for processing. Output will be {w*4}x{h*4}.')
+            
+            print(f"Processing image size: {w}x{h}")
+            
+            # Process image in tiles to handle large images
+            tile_size = 256  # Smaller tiles for better memory management
+            overlap = 16
+            scale = 4
+            
+            # Calculate output size
+            output_h, output_w = h * scale, w * scale
+            print(f"Output size will be: {output_w}x{output_h}")
+            
+            # Create output file path
+            output_filename = unique_filename + '_enhanced.png'
+            output_path = os.path.join(app.config['RESULTS_FOLDER'], output_filename)
+            
+            # Store tiles with their positions
+            output_tiles = []
+            
+            # Process tiles
+            tile_count = 0
+            total_tiles = ((h + tile_size - overlap - 1) // (tile_size - overlap)) * ((w + tile_size - overlap - 1) // (tile_size - overlap))
+            
+            for i in range(0, h, tile_size - overlap):
+                for j in range(0, w, tile_size - overlap):
+                    # Extract tile
+                    tile_h_start = i
+                    tile_h_end = min(i + tile_size, h)
+                    tile_w_start = j
+                    tile_w_end = min(j + tile_size, w)
+                    
+                    tile = img[tile_h_start:tile_h_end, tile_w_start:tile_w_end, :]
+                    
+                    # Preprocess tile
+                    tile_normalized = tile * 1.0 / 255
+                    tile_tensor = torch.from_numpy(np.transpose(tile_normalized[:, :, [2, 1, 0]], (2, 0, 1))).float()
+                    tile_tensor = tile_tensor.unsqueeze(0).to(device)
+                    
+                    # Run inference
+                    with torch.no_grad():
+                        try:
+                            tile_output = model(tile_tensor).data.squeeze().float().cpu().clamp_(0, 1).numpy()
+                        except RuntimeError as mem_error:
+                            if "memory" in str(mem_error).lower():
+                                flash('Out of memory. Try a smaller image or close other applications.')
+                                return redirect(url_for('index'))
+                            else:
+                                raise
+                    
+                    tile_output = np.transpose(tile_output[[2, 1, 0], :, :], (1, 2, 0))
+                    tile_output = (tile_output * 255.0).round().astype(np.uint8)
+                    
+                    # Calculate output position
+                    out_h_start = tile_h_start * scale
+                    out_w_start = tile_w_start * scale
+                    
+                    # Store tile
+                    output_tiles.append({
+                        'data': tile_output,
+                        'row': i // (tile_size - overlap),
+                        'col': j // (tile_size - overlap),
+                        'h_start': out_h_start,
+                        'w_start': out_w_start
+                    })
+                    
+                    tile_count += 1
+                    print(f"Processed tile {tile_count}/{total_tiles}")
+                    
+                    # Clear tensor from GPU/CPU memory
+                    del tile_tensor, tile_output
+            
+            print(f"All {tile_count} tiles processed. Stitching image...")
+            
+            # Group tiles by row
+            rows = {}
+            for tile_info in output_tiles:
+                row_idx = tile_info['row']
+                if row_idx not in rows:
+                    rows[row_idx] = []
+                rows[row_idx].append(tile_info)
+            
+            # Sort tiles in each row by column
+            for row_idx in rows:
+                rows[row_idx].sort(key=lambda x: x['col'])
+            
+            # Concatenate row by row
+            row_images = []
+            for row_idx in sorted(rows.keys()):
+                row_tiles_data = [tile['data'] for tile in rows[row_idx]]
+                row_img = np.concatenate(row_tiles_data, axis=1) if len(row_tiles_data) > 1 else row_tiles_data[0]
+                row_images.append(row_img)
                 
-            img = img * 1.0 / 255
-            img = torch.from_numpy(np.transpose(img[:, :, [2, 1, 0]], (2, 0, 1))).float()
-            img_LR = img.unsqueeze(0)
-            img_LR = img_LR.to(device)
+                # Clear memory
+                del row_tiles_data
+                print(f"Stitched row {row_idx + 1}/{len(rows)}")
             
-            print("Image preprocessed and loaded to device successfully")
+            # Concatenate all rows
+            print("Combining all rows...")
+            output = np.concatenate(row_images, axis=0) if len(row_images) > 1 else row_images[0]
             
-            # Run inference
-            with torch.no_grad():
-                output = model(img_LR).data.squeeze().float().cpu().clamp_(0, 1).numpy()
-            output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
-            output = (output * 255.0).round()
+            print(f"Final image size: {output.shape[1]}x{output.shape[0]}")
             
             # Save the result
             output_filename = unique_filename + '_enhanced.png'
