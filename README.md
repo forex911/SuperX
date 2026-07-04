@@ -1,24 +1,24 @@
 # SuperX
 
-Transform your images with AI-powered 4× super-resolution enhancement using ESRGAN (Enhanced Super-Resolution Generative Adversarial Network).
+Transform your images with AI-powered 4x super-resolution enhancement using ESRGAN (Enhanced Super-Resolution Generative Adversarial Network).
 
 ![Python](https://img.shields.io/badge/python-3.6+-blue.svg)
 ![Flask](https://img.shields.io/badge/flask-3.0+-green.svg)
 ![PyTorch](https://img.shields.io/badge/pytorch-2.0+-red.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-## ✨ Features
+## Features
 
-- 🎨 **Modern Minimalist UI** - Elegant aesthetic design with clean typography
-- 🚀 **4× Super-Resolution** - AI-powered upscaling using ESRGAN
-- 📏 **Auto-Resize** - Automatically handles large images (up to 2000×2000px)
-- 🧩 **Tile-Based Processing** - Memory-efficient processing for any image size
-- 📱 **Fully Responsive** - Works seamlessly on desktop, tablet, and mobile
-- ⚡ **Real-Time Preview** - See your image before enhancement
-- 💾 **Easy Download** - One-click download of enhanced images
-- 🎯 **Single Page Layout** - No scrolling, everything visible at once
+- **Modern Minimalist UI** - Elegant aesthetic design with clean typography
+- **4x Super-Resolution** - AI-powered upscaling using ESRGAN
+- **Auto-Resize** - Automatically handles large images (up to 2000x2000px)
+- **Tile-Based Processing** - Memory-efficient processing for any image size
+- **Fully Responsive** - Works seamlessly on desktop, tablet, and mobile
+- **Real-Time Preview** - See your image before enhancement
+- **Easy Download** - One-click download of enhanced images
+- **Single Page Layout** - No scrolling, everything visible at once
 
-## 🖼️ Demo
+## Demo
 
 ### Landing Page
 Clean, elegant entrance with clear call-to-action
@@ -29,7 +29,7 @@ Drag & drop or click to upload images
 ### Results
 Side-by-side comparison with download options
 
-## 📋 Requirements
+## Requirements
 
 - Python 3.6 or higher
 - PyTorch 1.9+
@@ -37,7 +37,7 @@ Side-by-side comparison with download options
 - Flask 2.0+
 - NumPy
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Clone the Repository
 
@@ -68,7 +68,7 @@ python app.py
 
 Visit `http://127.0.0.1:5000` in your web browser.
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 SuperX/
@@ -94,7 +94,7 @@ SuperX/
     └── result.html            # Results display
 ```
 
-## 💡 Usage
+## Usage
 
 ### Basic Workflow
 
@@ -110,34 +110,34 @@ SuperX/
 - **Input:** JPG, JPEG, PNG
 - **Output:** PNG (lossless)
 - **Max File Size:** 50MB
-- **Max Dimensions:** Any size (auto-resized to 2000×2000 max)
+- **Max Dimensions:** Any size (auto-resized to 2000x2000 max)
 
 ### Image Size Guide
 
 | Input Size | Auto-Resized | Output Size | Processing Time |
 |------------|--------------|-------------|-----------------|
-| 500×500 | (no resize) | 2000×2000 | ~30 sec |
-| 1000×1000 | (no resize) | 4000×4000 | ~1-2 min |
-| 1500×1500 | (no resize) | 6000×6000 | ~3-4 min |
-| 2000×2000 | (no resize) | 8000×8000 | ~5-7 min |
-| 4000×6000 | 1333×2000 | 5332×8000 | ~3-4 min |
+| 500x500 | (no resize) | 2000x2000 | ~30 sec |
+| 1000x1000 | (no resize) | 4000x4000 | ~1-2 min |
+| 1500x1500 | (no resize) | 6000x6000 | ~3-4 min |
+| 2000x2000 | (no resize) | 8000x8000 | ~5-7 min |
+| 4000x6000 | 1333x2000 | 5332x8000 | ~3-4 min |
 
-**Note:** Large images are automatically resized to fit within 2000×2000 while maintaining aspect ratio.
+**Note:** Large images are automatically resized to fit within 2000x2000 while maintaining aspect ratio.
 
-## 🛠️ Technical Details
+## Technical Details
 
 ### AI Model
 
 - **Architecture:** RRDB (Residual-in-Residual Dense Block)
 - **Framework:** PyTorch
 - **Model:** ESRGAN (Enhanced Super-Resolution GAN)
-- **Scale Factor:** 4× upscaling
+- **Scale Factor:** 4x upscaling
 - **Training:** Pre-trained on DIV2K dataset
 
 ### Processing Method
 
 **Tile-Based Algorithm:**
-- Images split into 256×256 pixel tiles
+- Images split into 256x256 pixel tiles
 - 16-pixel overlap for seamless blending
 - Each tile processed independently
 - Memory-efficient for large images
@@ -154,7 +154,7 @@ SuperX/
 - Row-by-row stitching
 - Automatic garbage collection
 
-## 🎨 Design Philosophy
+## Design Philosophy
 
 ### Aesthetic Minimalism
 
@@ -172,7 +172,7 @@ SuperX/
 - Progressive disclosure
 - Mobile-first responsive design
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables (Optional)
 
@@ -200,7 +200,7 @@ tile_size = 256
 overlap = 16
 ```
 
-## 🚢 Deployment
+## Deployment
 
 ### Heroku
 
@@ -234,12 +234,12 @@ EXPOSE 5000
 CMD ["python", "app.py"]
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
 **"Out of memory" error:**
-- Solution: Use smaller images (under 1500×1500)
+- Solution: Use smaller images (under 1500x1500)
 - Close other applications
 - Images auto-resize, but very large images may still exceed memory
 
@@ -250,26 +250,26 @@ CMD ["python", "app.py"]
 
 **Image too large error:**
 - Should auto-resize now
-- If still occurs, try images under 2000×2000
+- If still occurs, try images under 2000x2000
 
 **Model not found:**
 - Ensure `RRDB_ESRGAN_x4.pth` is in `models/` directory
 - Download from official source
 - Check file size (~64MB)
 
-## 📊 Performance
+## Performance
 
 ### CPU Mode
-- Small images (500×500): 20-40 seconds
-- Medium images (1000×1000): 1-2 minutes
-- Large images (2000×2000): 5-7 minutes
+- Small images (500x500): 20-40 seconds
+- Medium images (1000x1000): 1-2 minutes
+- Large images (2000x2000): 5-7 minutes
 
 ### GPU Mode (CUDA)
-- 10-20× faster than CPU
+- 10-20x faster than CPU
 - Large images: 30-60 seconds
 - Recommended for production
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -279,11 +279,16 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## Contributors
+
+- [subeesesh](https://github.com/subeesesh)
+- [sanjaim25](https://github.com/sanjaim25)
+
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **ESRGAN Model:** [Enhanced Super-Resolution Generative Adversarial Networks](https://github.com/xinntao/ESRGAN)
 - **PyTorch:** Deep learning framework
@@ -291,13 +296,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **OpenCV:** Image processing library
 - **Fonts:** Cormorant Garamond, Inter
 
-## 📧 Contact
+## Contact
 
 For questions, issues, or suggestions:
 - Open an issue on GitHub
 - Contact: [your-email@example.com]
 
-## 🗺️ Roadmap
+## Roadmap
 
 ### Planned Features
 - [ ] Batch image processing
@@ -311,7 +316,7 @@ For questions, issues, or suggestions:
 - [ ] Quality vs. speed presets
 - [ ] Image format conversion
 
-## 📸 Screenshots
+## Screenshots
 
 ### Landing Page
 Beautiful minimalist entrance with clear value proposition.
@@ -330,6 +335,6 @@ Interactive slider comparison with instant high-res download.
 
 ---
 
-**Made with ❤️ using AI and Python**
+**Made with love using AI and Python**
 
 *Transform your images with the power of deep learning.*
