@@ -18,17 +18,6 @@ Transform your images with AI-powered 4x super-resolution enhancement using ESRG
 - **Easy Download** - One-click download of enhanced images
 - **Single Page Layout** - No scrolling, everything visible at once
 
-## Demo
-
-### Landing Page
-Clean, elegant entrance with clear call-to-action
-
-### Upload Interface
-Drag & drop or click to upload images
-
-### Results
-Side-by-side comparison with download options
-
 ## Requirements
 
 - Python 3.6 or higher
