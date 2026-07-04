@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Enhancement — 4× Super Resolution</title>
+    <title>SuperX — 4× Super Resolution</title>
     <meta name="description" content="Transform your images with AI-powered 4x super-resolution enhancement using ESRGAN. Runs entirely in your browser — no uploads, no servers.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -938,7 +938,7 @@
         let inputName = '';
         let outputName = '';
         let selectedFile = null;
-        let isModelLoading = false;
+        let modelLoadPromise = null;
         let timerInterval = null;
 
         // ===== DOM ELEMENTS =====
@@ -1004,54 +1004,55 @@
             return allChunks.buffer;
         }
 
-        async function loadModel() {
-            if (session) return; // Already loaded
-            if (isModelLoading) return;
-            isModelLoading = true;
+        function loadModel() {
+            if (session) return Promise.resolve();
+            if (modelLoadPromise) return modelLoadPromise;
 
             setStatus('loading', 'Loading model...');
 
-            try {
-                // Download model graph file (~2MB)
-                updateProgress(0, 'Downloading model graph...');
-                const modelBuffer = await fetchWithProgress(MODEL_URL, 'model');
+            modelLoadPromise = (async () => {
+                try {
+                    // Download model graph file (~2MB)
+                    updateProgress(0, 'Downloading model graph...');
+                    const modelBuffer = await fetchWithProgress(MODEL_URL, 'model');
 
-                // Download weights file (~65MB)
-                updateProgress(5, 'Downloading model weights...');
-                const dataBuffer = await fetchWithProgress(DATA_URL, 'weights');
+                    // Download weights file (~65MB)
+                    updateProgress(5, 'Downloading model weights...');
+                    const dataBuffer = await fetchWithProgress(DATA_URL, 'weights');
 
-                updateProgress(45, 'Initializing AI engine...');
+                    updateProgress(45, 'Initializing AI engine...');
 
-                // Create ONNX session with external data
-                const sessionOptions = {
-                    executionProviders: ['wasm'],
-                    graphOptimizationLevel: 'all'
-                };
+                    // Create ONNX session with external data
+                    const sessionOptions = {
+                        executionProviders: ['wasm'],
+                        graphOptimizationLevel: 'all'
+                    };
 
-                session = await ort.InferenceSession.create(
-                    new Uint8Array(modelBuffer),
-                    {
-                        ...sessionOptions,
-                        externalData: [{
-                            data: new Uint8Array(dataBuffer),
-                            path: 'esrgan.onnx.data'
-                        }]
-                    }
-                );
+                    session = await ort.InferenceSession.create(
+                        new Uint8Array(modelBuffer),
+                        {
+                            ...sessionOptions,
+                            externalData: [{
+                                data: new Uint8Array(dataBuffer),
+                                path: 'esrgan.onnx.data'
+                            }]
+                        }
+                    );
 
-                inputName = session.inputNames[0];
-                outputName = session.outputNames[0];
+                    inputName = session.inputNames[0];
+                    outputName = session.outputNames[0];
 
-                console.log(`ONNX model loaded. Input: ${inputName}, Output: ${outputName}`);
-                setStatus('ready', 'Model ready');
-                updateProgress(50, 'Model loaded');
-            } catch (err) {
-                console.error('Model loading error:', err);
-                setStatus('error', 'Model failed');
-                throw new Error(`Failed to load AI model: ${err.message}`);
-            } finally {
-                isModelLoading = false;
-            }
+                    console.log(`ONNX model loaded. Input: ${inputName}, Output: ${outputName}`);
+                    setStatus('ready', 'Model ready');
+                    updateProgress(50, 'Model loaded');
+                } catch (err) {
+                    console.error('Model loading error:', err);
+                    setStatus('error', 'Model failed');
+                    modelLoadPromise = null;
+                    throw new Error(`Failed to load AI model: ${err.message}`);
+                }
+            })();
+            return modelLoadPromise;
         }
 
         // ===== IMAGE PROCESSING =====
@@ -1128,6 +1129,9 @@
 
                     // Extract tile
                     const tileData = ctx.getImageData(tx, ty, tileW, tileH);
+
+                    // Yield to browser to update UI before heavy processing freezes it
+                    await new Promise(r => setTimeout(r, 50));
 
                     // Process tile
                     const result = await processTile(tileData, tileW, tileH);
@@ -1330,6 +1334,9 @@
                 procSubtitle.textContent = 'AI Super-Resolution in Progress';
                 setStep('step-enhance');
                 updateProgress(55, 'Starting enhancement...');
+
+                // Force browser to repaint before freezing
+                await new Promise(r => setTimeout(r, 50));
 
                 await enhanceImage(workCanvas);
 

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperX - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='base.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                
+                SuperX
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/upload" class="nav-item {% if request.endpoint == 'index' %}active{% endif %}">
+                    <span class="nav-icon">⊞</span> Dashboard
+                </a>
+                <a href="/info" class="nav-item {% if request.endpoint == 'info' %}active{% endif %}">
+                    <span class="nav-icon">ℹ</span> How it Works
+                </a>
+            </nav>
+            
+            <div class="sidebar-spacer"></div>
+            
+            <div class="pro-card">
+                <h3>Open Source</h3>
+                <p>SuperX is a free, local AI upscaler. Show your support!</p>
+                <a href="https://github.com/forex911/SuperX" target="_blank" class="btn-pro">⭐ Star on GitHub</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Page Specific Content -->
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

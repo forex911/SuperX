@@ -4,8 +4,11 @@ import numpy as np
 import cv2
 import requests
 import onnxruntime as ort
-from flask import Flask, request, render_template, send_from_directory, url_for, flash, redirect
+from flask import Flask, request, render_template, send_from_directory, url_for, flash, redirect, jsonify
 from werkzeug.utils import secure_filename
+import threading
+
+TASKS = {}
 
 # Make sure we're looking for templates in the right place
 template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))
@@ -104,17 +107,40 @@ def too_large(e):
 
 
 @app.route('/')
-def landing():
-    # Serve the root index.html directly (standalone, no Jinja)
-    root_index = os.path.abspath(os.path.join(os.path.dirname(__file__), 'index.html'))
-    if os.path.exists(root_index):
-        return send_from_directory(os.path.dirname(root_index), 'index.html')
+def root():
     return render_template('landing.html')
 
 
 @app.route('/upload')
 def index():
     return render_template('index.html')
+
+@app.route('/info')
+def info():
+    return render_template('info.html')
+
+@app.route('/model-info')
+def model_info():
+    """Return real metadata about the loaded model and server config."""
+    model_size_mb = 0
+    if os.path.exists(ONNX_MODEL_PATH):
+        model_size_mb += os.path.getsize(ONNX_MODEL_PATH) / (1024 * 1024)
+    if os.path.exists(ONNX_DATA_PATH):
+        model_size_mb += os.path.getsize(ONNX_DATA_PATH) / (1024 * 1024)
+
+    return jsonify({
+        'model_name': 'ESRGAN 4x',
+        'model_format': 'ONNX',
+        'model_size_mb': round(model_size_mb, 1),
+        'input_name': input_name,
+        'output_name': output_name,
+        'scale_factor': 4,
+        'tile_size': 256,
+        'max_input_dimension': 2000,
+        'max_upload_mb': app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024),
+        'allowed_formats': list(app.config['ALLOWED_EXTENSIONS']),
+        'provider': session.get_providers()[0] if session else 'N/A'
+    })
 
 
 @app.route('/enhance', methods=['POST'])
@@ -148,174 +174,205 @@ def enhance_image():
                 flash(f'Error saving uploaded file to {input_path}')
                 return redirect(url_for('index'))
                 
-            print(f"Image saved to: {input_path}")
+            # Spawn background thread for processing
+            task_id = unique_filename
+            TASKS[task_id] = {
+                'status': 'processing',
+                'progress': 0,
+                'message': 'Image saved, starting processing...',
+                'original_filename': original_filename,
+                'input_path': input_path
+            }
             
-            # Read and preprocess the image
-            img = cv2.imread(input_path, cv2.IMREAD_COLOR)
-            if img is None:
-                flash('Error reading uploaded image. The file might be corrupted.')
-                return redirect(url_for('index'))
+            thread = threading.Thread(
+                target=process_image_task, 
+                args=(task_id, input_path, unique_filename)
+            )
+            thread.daemon = True
+            thread.start()
             
-            h, w = img.shape[:2]
-            print(f"Original image size: {w}x{h}")
+            return jsonify({'success': True, 'task_id': task_id})
             
-            # Automatically resize if image is too large
-            max_input_dimension = 2000
-            if max(h, w) > max_input_dimension:
-                scale = max_input_dimension / max(h, w)
-                new_w = int(w * scale)
-                new_h = int(h * scale)
-                print(f"Resizing from {w}x{h} to {new_w}x{new_h}")
-                img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-                h, w = new_h, new_w
-                flash(f'Image automatically resized to {w}x{h} for processing. Output will be {w*4}x{h*4}.')
-            
-            print(f"Processing image size: {w}x{h}")
-            
-            # Process image in tiles to handle large images
-            tile_size = 256  # Smaller tiles for better memory management
-            overlap = 16
-            scale = 4
-            
-            # Calculate output size
-            output_h, output_w = h * scale, w * scale
-            print(f"Output size will be: {output_w}x{output_h}")
-            
-            # Create output file path
-            output_filename = unique_filename + '_enhanced.png'
-            output_path = os.path.join(app.config['RESULTS_FOLDER'], output_filename)
-            
-            # Store tiles with their positions
-            output_tiles = []
-            
-            # Process tiles
-            tile_count = 0
-            total_tiles = ((h + tile_size - overlap - 1) // (tile_size - overlap)) * ((w + tile_size - overlap - 1) // (tile_size - overlap))
-            
-            for i in range(0, h, tile_size - overlap):
-                for j in range(0, w, tile_size - overlap):
-                    # Extract tile
-                    tile_h_start = i
-                    tile_h_end = min(i + tile_size, h)
-                    tile_w_start = j
-                    tile_w_end = min(j + tile_size, w)
-                    
-                    tile = img[tile_h_start:tile_h_end, tile_w_start:tile_w_end, :]
-                    
-                    # Preprocess tile for ONNX: normalize and convert BGR->RGB, NCHW format
-                    tile_normalized = tile.astype(np.float32) / 255.0
-                    tile_input = np.transpose(tile_normalized[:, :, [2, 1, 0]], (2, 0, 1))  # BGR->RGB, HWC->CHW
-                    tile_input = np.expand_dims(tile_input, axis=0)  # Add batch dimension: (1, 3, H, W)
-                    
-                    # Run ONNX inference
-                    try:
-                        tile_output = session.run(
-                            [output_name],
-                            {input_name: tile_input}
-                        )[0]
-                    except Exception as infer_error:
-                        print(f"Inference error: {infer_error}")
-                        flash('Error during image enhancement. Try a smaller image.')
-                        return redirect(url_for('index'))
-                    
-                    # Post-process: squeeze batch dim, clip, convert back to uint8
-                    tile_output = np.squeeze(tile_output, axis=0)  # Remove batch dim: (3, H, W)
-                    tile_output = np.clip(tile_output, 0, 1)
-                    tile_output = np.transpose(tile_output[[2, 1, 0], :, :], (1, 2, 0))  # RGB->BGR, CHW->HWC
-                    tile_output = (tile_output * 255.0).round().astype(np.uint8)
-                    
-                    # Calculate output position
-                    out_h_start = tile_h_start * scale
-                    out_w_start = tile_w_start * scale
-                    
-                    # Store tile
-                    output_tiles.append({
-                        'data': tile_output,
-                        'row': i // (tile_size - overlap),
-                        'col': j // (tile_size - overlap),
-                        'h_start': out_h_start,
-                        'w_start': out_w_start
-                    })
-                    
-                    tile_count += 1
-                    print(f"Processed tile {tile_count}/{total_tiles}")
-            
-            print(f"All {tile_count} tiles processed. Stitching image...")
-            
-            # Group tiles by row
-            rows = {}
-            for tile_info in output_tiles:
-                row_idx = tile_info['row']
-                if row_idx not in rows:
-                    rows[row_idx] = []
-                rows[row_idx].append(tile_info)
-            
-            # Sort tiles in each row by column
-            for row_idx in rows:
-                rows[row_idx].sort(key=lambda x: x['col'])
-            
-            # Concatenate row by row
-            row_images = []
-            for row_idx in sorted(rows.keys()):
-                row_tiles_data = [tile['data'] for tile in rows[row_idx]]
-                row_img = np.concatenate(row_tiles_data, axis=1) if len(row_tiles_data) > 1 else row_tiles_data[0]
-                row_images.append(row_img)
-                
-                # Clear memory
-                del row_tiles_data
-                print(f"Stitched row {row_idx + 1}/{len(rows)}")
-            
-            # Concatenate all rows
-            print("Combining all rows...")
-            output = np.concatenate(row_images, axis=0) if len(row_images) > 1 else row_images[0]
-            
-            print(f"Final image size: {output.shape[1]}x{output.shape[0]}")
-            
-            # Save the result
-            output_filename = unique_filename + '_enhanced.png'
-            output_path = os.path.join(app.config['RESULTS_FOLDER'], output_filename)
-            success = cv2.imwrite(output_path, output)
-            if not success:
-                flash('Error saving enhanced image')
-                return redirect(url_for('index'))
-                
-            print(f"Enhanced image saved to: {output_path}")
-            
-            # Generate static URLs for images
-            original_filename_only = os.path.basename(input_path)
-            original_static_url = f"/static/uploads/{original_filename_only}"
-            enhanced_static_url = f"/static/results/{output_filename}"
-            
-            # Return the result page - try the simple template first
-            try:
-                # Try the simple result template first
-                return render_template('simple_result.html', 
-                                    original=original_filename_only,
-                                    enhanced=output_filename,
-                                    original_url=original_static_url,
-                                    enhanced_url=enhanced_static_url)
-            except Exception as simple_template_error:
-                print(f"Error with simple template: {str(simple_template_error)}")
-                try:
-                    # Fallback to the original template
-                    return render_template('result.html', 
-                                        original=original_filename_only,
-                                        enhanced=output_filename,
-                                        original_url=original_static_url,
-                                        enhanced_url=enhanced_static_url)
-                except Exception as template_error:
-                    flash(f'Error rendering templates: {str(template_error)}')
-                    return redirect(url_for('index'))
-        
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
             print(f"Error details: {error_details}")
+            if request.headers.get('Accept') == 'application/json':
+                return jsonify({'success': False, 'error': str(e)})
             flash(f'Error processing image: {str(e)}')
             return redirect(url_for('index'))
     
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify({'success': False, 'error': 'Invalid file type. Please upload a PNG, JPG, or JPEG file.'})
     flash('Invalid file type. Please upload a PNG, JPG, or JPEG file.')
     return redirect(url_for('index'))
+
+
+def process_image_task(task_id, input_path, unique_filename):
+    try:
+        # Read and preprocess the image
+        img = cv2.imread(input_path, cv2.IMREAD_COLOR)
+        if img is None:
+            TASKS[task_id] = {'status': 'error', 'message': 'Error reading uploaded image. The file might be corrupted.'}
+            return
+        
+        h, w = img.shape[:2]
+        print(f"Original image size: {w}x{h}")
+        
+        # Automatically resize if image is too large
+        max_input_dimension = 2000
+        if max(h, w) > max_input_dimension:
+            scale_down = max_input_dimension / max(h, w)
+            new_w = int(w * scale_down)
+            new_h = int(h * scale_down)
+            print(f"Resizing from {w}x{h} to {new_w}x{new_h}")
+            img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            h, w = new_h, new_w
+            TASKS[task_id]['message'] = f'Image automatically resized to {w}x{h} for processing.'
+        
+        print(f"Processing image size: {w}x{h}")
+        
+        # Process image in tiles to handle large images
+        tile_size = 256  # Smaller tiles for better memory management
+        overlap = 0      # Fixed bug: overlap must be 0 when using np.concatenate for stitching
+        scale = 4
+        
+        # Calculate output size
+        output_h, output_w = h * scale, w * scale
+        print(f"Output size will be: {output_w}x{output_h}")
+        
+        # Store tiles with their positions
+        output_tiles = []
+        
+        # Process tiles
+        tile_count = 0
+        total_tiles = ((h + tile_size - overlap - 1) // (tile_size - overlap)) * ((w + tile_size - overlap - 1) // (tile_size - overlap))
+        
+        TASKS[task_id]['total_tiles'] = total_tiles
+        TASKS[task_id]['current_tile'] = 0
+        TASKS[task_id]['message'] = 'Enhancing image with AI...'
+        
+        for i in range(0, h, tile_size - overlap):
+            for j in range(0, w, tile_size - overlap):
+                # Extract tile
+                tile_h_start = i
+                tile_h_end = min(i + tile_size, h)
+                tile_w_start = j
+                tile_w_end = min(j + tile_size, w)
+                
+                tile = img[tile_h_start:tile_h_end, tile_w_start:tile_w_end, :]
+                
+                # Preprocess tile for ONNX: normalize and convert BGR->RGB, NCHW format
+                tile_normalized = tile.astype(np.float32) / 255.0
+                tile_input = np.transpose(tile_normalized[:, :, [2, 1, 0]], (2, 0, 1))  # BGR->RGB, HWC->CHW
+                tile_input = np.expand_dims(tile_input, axis=0)  # Add batch dimension: (1, 3, H, W)
+                
+                # Run ONNX inference
+                try:
+                    tile_output = session.run(
+                        [output_name],
+                        {input_name: tile_input}
+                    )[0]
+                except Exception as infer_error:
+                    print(f"Inference error: {infer_error}")
+                    TASKS[task_id] = {'status': 'error', 'message': 'Error during image enhancement. Try a smaller image.'}
+                    return
+                
+                # Post-process: squeeze batch dim, clip, convert back to uint8
+                tile_output = np.squeeze(tile_output, axis=0)  # Remove batch dim: (3, H, W)
+                tile_output = np.clip(tile_output, 0, 1)
+                tile_output = np.transpose(tile_output[[2, 1, 0], :, :], (1, 2, 0))  # RGB->BGR, CHW->HWC
+                tile_output = (tile_output * 255.0).round().astype(np.uint8)
+                
+                # Calculate output position
+                out_h_start = tile_h_start * scale
+                out_w_start = tile_w_start * scale
+                
+                # Store tile
+                output_tiles.append({
+                    'data': tile_output,
+                    'row': i // (tile_size - overlap),
+                    'col': j // (tile_size - overlap),
+                    'h_start': out_h_start,
+                    'w_start': out_w_start
+                })
+                
+                tile_count += 1
+                TASKS[task_id]['current_tile'] = tile_count
+                TASKS[task_id]['progress'] = int((tile_count / total_tiles) * 80) # 80% for AI proc
+                print(f"Processed tile {tile_count}/{total_tiles}")
+        
+        print(f"All {tile_count} tiles processed. Stitching image...")
+        TASKS[task_id]['message'] = 'Stitching final image...'
+        
+        # Group tiles by row
+        rows = {}
+        for tile_info in output_tiles:
+            row_idx = tile_info['row']
+            if row_idx not in rows:
+                rows[row_idx] = []
+            rows[row_idx].append(tile_info)
+        
+        # Sort tiles in each row by column
+        for row_idx in rows:
+            rows[row_idx].sort(key=lambda x: x['col'])
+        
+        # Concatenate row by row
+        row_images = []
+        for row_idx in sorted(rows.keys()):
+            row_tiles_data = [tile['data'] for tile in rows[row_idx]]
+            row_img = np.concatenate(row_tiles_data, axis=1) if len(row_tiles_data) > 1 else row_tiles_data[0]
+            row_images.append(row_img)
+            del row_tiles_data
+        
+        # Concatenate all rows
+        output = np.concatenate(row_images, axis=0) if len(row_images) > 1 else row_images[0]
+        
+        # Save the result
+        output_filename = unique_filename + '_enhanced.png'
+        output_path = os.path.join(app.config['RESULTS_FOLDER'], output_filename)
+        success = cv2.imwrite(output_path, output)
+        if not success:
+            TASKS[task_id] = {'status': 'error', 'message': 'Error saving enhanced image'}
+            return
+            
+        # Generate static URLs for images
+        original_filename_only = os.path.basename(input_path)
+        original_static_url = f"/static/uploads/{original_filename_only}"
+        enhanced_static_url = f"/static/results/{output_filename}"
+        
+        TASKS[task_id].update({
+            'status': 'completed',
+            'progress': 100,
+            'message': 'Complete!',
+            'original_url': original_static_url,
+            'enhanced_url': enhanced_static_url,
+            'original_filename': original_filename_only,
+            'enhanced_filename': output_filename
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Background task error: {traceback.format_exc()}")
+        TASKS[task_id] = {'status': 'error', 'message': f'Error processing image: {str(e)}'}
+
+@app.route('/status/<task_id>')
+def task_status(task_id):
+    if task_id in TASKS:
+        return jsonify(TASKS[task_id])
+    return jsonify({'status': 'not_found'}), 404
+
+@app.route('/result_page/<task_id>')
+def result_page(task_id):
+    if task_id not in TASKS or TASKS[task_id]['status'] != 'completed':
+        flash('Result not ready or task not found.')
+        return redirect(url_for('index'))
+    task = TASKS[task_id]
+    return render_template('result.html',
+                           original=task['original_filename'],
+                           enhanced=task['enhanced_filename'],
+                           original_url=task['original_url'],
+                           enhanced_url=task['enhanced_url'])
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):

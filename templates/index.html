@@ -1,241 +1,309 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Enhancement — Upload</title>
-    <meta name="description" content="Upload your image for AI-powered 4x super-resolution enhancement using ESRGAN neural network.">
+{% extends 'base.html' %}
 
-    <!-- Bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+{% block extra_css %}
+<style>
+/* Upload Card Specifics */
+.upload-drop-zone {
+    border: 2px dashed #E0E2E7;
+    border-radius: var(--border-radius-md);
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #FAFAFB;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+}
 
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="/static/index.css">
+.upload-drop-zone:hover, .upload-drop-zone.active {
+    border-color: var(--accent-purple);
+    background-color: #F8F7FF;
+}
 
-    <style>
-        /* Enhanced Loading Overlay */
-        .processing-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(250, 248, 243, 0.97);
-            z-index: 9999;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            backdrop-filter: blur(8px);
-        }
+.upload-drop-zone input[type="file"] {
+    display: none;
+}
 
-        .processing-overlay.active {
-            display: flex;
-            animation: fadeIn 0.4s ease-out;
-        }
+.upload-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--accent-purple);
+}
 
-        .processing-content {
-            text-align: center;
-            max-width: 400px;
-            padding: 2rem;
-        }
+.upload-text {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
 
-        .processing-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 2rem;
-            position: relative;
-        }
+.upload-subtext {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
 
-        .processing-icon .ring {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border: 2px solid #E0DED8;
-            border-top-color: #2A2A2A;
-            border-radius: 50%;
-            animation: spin 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-        }
+.preview-container {
+    margin-top: 1.5rem;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    max-height: 250px;
+    display: none;
+}
 
-        .processing-icon .ring:nth-child(2) {
-            width: 60px;
-            height: 60px;
-            top: 10px;
-            left: 10px;
-            border-top-color: #B8B5A8;
-            animation-delay: -0.15s;
-            animation-direction: reverse;
-        }
+.preview-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
 
-        .processing-icon .ring:nth-child(3) {
-            width: 40px;
-            height: 40px;
-            top: 20px;
-            left: 20px;
-            border-top-color: #D4AF37;
-            animation-delay: -0.3s;
-        }
+/* Status Card */
+.status-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
 
-        .processing-title {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 1.75rem;
-            font-weight: 300;
-            color: #1A1A1A;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.02em;
-        }
+.status-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    font-style: italic;
+    opacity: 0.7;
+}
 
-        .processing-subtitle {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.75rem;
-            color: #B8B5A8;
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            margin-bottom: 2rem;
-        }
+.status-active {
+    display: none;
+}
 
-        .processing-progress {
-            width: 200px;
-            height: 2px;
-            background: #E0DED8;
-            margin: 0 auto 1.5rem;
-            border-radius: 1px;
-            overflow: hidden;
-        }
+.status-active.show {
+    display: block;
+    animation: fadeIn 0.4s ease;
+}
 
-        .processing-progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #2A2A2A, #B8B5A8, #2A2A2A);
-            background-size: 200% 100%;
-            animation: shimmer 2s ease-in-out infinite;
-            width: 100%;
-        }
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
 
-        .processing-steps {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.75rem;
-            color: #B8B5A8;
-        }
+.progress-title {
+    font-weight: 600;
+    font-size: 1.2rem;
+}
 
-        .processing-steps li {
-            padding: 0.35rem 0;
-            transition: all 0.4s ease;
-            opacity: 0.4;
-        }
+.progress-percent {
+    font-weight: 700;
+    color: var(--accent-purple);
+    background: #F4F3FF;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--border-radius-pill);
+    font-size: 0.85rem;
+}
 
-        .processing-steps li.active {
-            opacity: 1;
-            color: #2A2A2A;
-            font-weight: 500;
-        }
+.progress-track {
+    height: 12px;
+    background-color: #E0E2E7;
+    border-radius: var(--border-radius-pill);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
 
-        .processing-steps li.done {
-            opacity: 0.6;
-            color: #B8B5A8;
-        }
+.progress-fill {
+    height: 100%;
+    background-color: var(--accent-purple);
+    width: 0%;
+    transition: width 0.3s ease;
+}
 
-        .processing-steps li.done::before {
-            content: '✓ ';
-            color: #2A2A2A;
-        }
+.step-list {
+    list-style: none;
+    margin-bottom: 2rem;
+}
 
-        .processing-timer {
-            font-family: 'Inter', sans-serif;
-            font-size: 0.7rem;
-            color: #B8B5A8;
-            margin-top: 1.5rem;
-            letter-spacing: 0.1em;
-        }
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0.75rem 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+.step-item.active {
+    color: var(--text-primary);
+    font-weight: 600;
+}
 
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
+.step-item.done {
+    color: var(--text-secondary);
+    text-decoration: line-through;
+}
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-    </style>
-</head>
-<body>
+.step-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #E0E2E7;
+}
 
-<div class="container">
-    <div class="header">
-        <h1>Upload Image</h1>
-        <p>Any Size, 4× Enhancement</p>
+.step-item.active .step-dot {
+    background-color: var(--accent-lime);
+    box-shadow: 0 0 0 4px rgba(202, 255, 71, 0.2);
+}
+
+.step-item.done .step-dot {
+    background-color: var(--accent-purple);
+}
+
+.timer-box {
+    background-color: var(--bg-main);
+    padding: 1rem;
+    border-radius: var(--border-radius-md);
+    text-align: center;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2 class="page-title">Image Enhancement</h2>
+    <p class="page-subtitle">Upload an image to upscale it with AI super-resolution.</p>
+</div>
+
+<!-- Model Info Bar (populated from real backend data) -->
+<div id="model-info-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 2rem; opacity: 0; transition: opacity 0.4s ease;">
+    <div class="dashboard-card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Model</div>
+        <div id="mi-name" style="font-weight: 600;">—</div>
     </div>
+    <div class="dashboard-card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Scale Factor</div>
+        <div id="mi-scale" style="font-weight: 600;">—</div>
+    </div>
+    <div class="dashboard-card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Max Input</div>
+        <div id="mi-max" style="font-weight: 600;">—</div>
+    </div>
+    <div class="dashboard-card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Formats</div>
+        <div id="mi-formats" style="font-weight: 600;">—</div>
+    </div>
+    <div class="dashboard-card" style="padding: 1rem 1.25rem;">
+        <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 4px;">Runtime</div>
+        <div id="mi-provider" style="font-weight: 600;">—</div>
+    </div>
+</div>
 
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-danger">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<!-- Flash messages -->
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <div style="margin-bottom: 20px;">
+        {% for message in messages %}
+            <div style="background: #ffdbdb; color: #d92b2b; padding: 15px; border-radius: 12px; margin-bottom: 10px;">{{ message }}</div>
+        {% endfor %}
+        </div>
+    {% endif %}
+{% endwith %}
 
-    <!-- Upload Form -->
-    <div class="upload-form">
+<div class="content-grid">
+    <!-- Upload Area -->
+    <div class="dashboard-card">
+        <h3 style="margin-bottom: 1.5rem; font-weight: 600;">Upload Source</h3>
         <form id="upload-form" action="/enhance" method="post" enctype="multipart/form-data">
-
-            <!-- Custom File Upload -->
-            <div class="mb-3">
-                <label class="custom-file-upload">
-                    <input type="file" id="file" name="file" accept=".jpg,.jpeg,.png" required>
-                    <span id="file-text">Drop image here or click to upload</span>
-                </label>
-            </div>
-
-            <!-- Image Preview -->
+            <label class="upload-drop-zone">
+                <input type="file" id="file" name="file" accept=".jpg,.jpeg,.png" required>
+                <div class="upload-icon">⇧</div>
+                <div class="upload-text" id="file-text">Click to browse or drop image here</div>
+                <div class="upload-subtext">PNG, JPG up to 10MB</div>
+            </label>
+            
             <div class="preview-container">
-                <img id="image-preview" src="#" alt="Image Preview">
+                <img id="image-preview" src="#" alt="Preview">
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit" id="enhance-btn" class="btn btn-primary w-100 mt-3">
-                Enhance Image
+            <button type="submit" id="enhance-btn" class="btn-primary" style="width: 100%; margin-top: 1.5rem;">
+                Process Image
+            </button>
+            <button type="button" id="change-image-btn" class="btn-secondary" style="display: none; width: 100%; margin-top: 1rem;">
+                Change Image
             </button>
         </form>
     </div>
-</div>
 
-<!-- Processing Overlay -->
-<div class="processing-overlay" id="processing-overlay">
-    <div class="processing-content">
-        <div class="processing-icon">
-            <div class="ring"></div>
-            <div class="ring"></div>
-            <div class="ring"></div>
+    <!-- Processing Status -->
+    <div class="dashboard-card status-card">
+        <div id="status-empty" class="status-empty">
+            Select an image and click Process to see progress here.
         </div>
-        <div class="processing-title">Enhancing</div>
-        <div class="processing-subtitle">AI Super-Resolution in Progress</div>
-        <div class="processing-progress">
-            <div class="processing-progress-bar"></div>
+        
+        <div id="status-active" class="status-active">
+            <div class="progress-header">
+                <div class="progress-title">AI Processing</div>
+                <div class="progress-percent" id="progress-percent">0%</div>
+            </div>
+            
+            <div class="progress-track">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            
+            <ul class="step-list">
+                <li class="step-item active" id="step-upload">
+                    <div class="step-dot"></div> Uploading image
+                </li>
+                <li class="step-item" id="step-process">
+                    <div class="step-dot"></div> Running ESRGAN Model
+                </li>
+                <li class="step-item" id="step-enhance">
+                    <div class="step-dot"></div> Applying 4x Super-Resolution
+                </li>
+                <li class="step-item" id="step-finalize">
+                    <div class="step-dot"></div> Finalizing Result
+                </li>
+            </ul>
+            
+            <div class="timer-box" id="processing-timer">
+                Elapsed Time: 0s
+            </div>
         </div>
-        <ul class="processing-steps">
-            <li id="step-upload" class="active">Uploading image...</li>
-            <li id="step-process">Processing with ESRGAN model...</li>
-            <li id="step-enhance">Applying 4× enhancement...</li>
-            <li id="step-finalize">Finalizing result...</li>
-        </ul>
-        <div class="processing-timer" id="processing-timer">Elapsed: 0s</div>
     </div>
 </div>
+{% endblock %}
 
-<!-- JavaScript -->
+{% block extra_js %}
 <script>
 const fileInput = document.getElementById("file");
 const fileText = document.getElementById("file-text");
-const uploadBox = document.querySelector(".custom-file-upload");
+const dropZone = document.querySelector(".upload-drop-zone");
+const previewContainer = document.querySelector(".preview-container");
 const previewImage = document.getElementById("image-preview");
+
+// Fetch model info on load
+document.addEventListener("DOMContentLoaded", async () => {
+    try {
+        const res = await fetch("/model-info");
+        const data = await res.json();
+        
+        document.getElementById("mi-name").textContent = data.model_name;
+        document.getElementById("mi-scale").textContent = data.scale_factor + "x";
+        document.getElementById("mi-max").textContent = data.max_input_dimension + "px";
+        document.getElementById("mi-formats").textContent = data.allowed_formats.join(", ").toUpperCase();
+        document.getElementById("mi-provider").textContent = data.provider.replace("ExecutionProvider", "");
+        
+        const infoBar = document.getElementById("model-info-bar");
+        if (infoBar) infoBar.style.opacity = "1";
+    } catch (err) {
+        console.error("Failed to fetch model info:", err);
+    }
+});
 
 // Show preview & filename
 fileInput.addEventListener("change", function () {
@@ -243,23 +311,53 @@ fileInput.addEventListener("change", function () {
     if (!file) return;
 
     fileText.textContent = file.name;
-    uploadBox.classList.add("active");
+    dropZone.classList.add("active");
+    dropZone.style.display = "none";
+    document.getElementById("change-image-btn").style.display = "block";
 
     const reader = new FileReader();
     reader.onload = function (e) {
         previewImage.src = e.target.result;
-        previewImage.style.display = "block";
+        previewContainer.style.display = "block";
     };
     reader.readAsDataURL(file);
 });
 
-// Processing overlay logic
-document.getElementById("upload-form").addEventListener("submit", function () {
-    const overlay = document.getElementById("processing-overlay");
-    overlay.classList.add("active");
+// Reset selection
+document.getElementById("change-image-btn").addEventListener("click", function() {
+    fileInput.value = "";
+    dropZone.style.display = "flex";
+    dropZone.classList.remove("active");
+    this.style.display = "none";
+    previewContainer.style.display = "none";
+    fileText.textContent = "Click to browse or drop image here";
+});
+
+// Processing form logic
+document.getElementById("upload-form").addEventListener("submit", async function (e) {
+    e.preventDefault(); 
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Please select a file first.");
+        return;
+    }
+
+    const emptyStatus = document.getElementById("status-empty");
+    const activeStatus = document.getElementById("status-active");
+    emptyStatus.style.display = "none";
+    activeStatus.classList.add("show");
 
     let elapsed = 0;
     const timerEl = document.getElementById("processing-timer");
+    const progressPercent = document.getElementById("progress-percent");
+    const progressFill = document.getElementById("progress-fill");
+    
+    const steps = [
+        document.getElementById("step-upload"),
+        document.getElementById("step-process"),
+        document.getElementById("step-enhance"),
+        document.getElementById("step-finalize")
+    ];
 
     // Update elapsed time
     const timerInterval = setInterval(() => {
@@ -267,31 +365,85 @@ document.getElementById("upload-form").addEventListener("submit", function () {
         const mins = Math.floor(elapsed / 60);
         const secs = elapsed % 60;
         timerEl.textContent = mins > 0 
-            ? `Elapsed: ${mins}m ${secs}s` 
-            : `Elapsed: ${secs}s`;
+            ? `Elapsed Time: ${mins}m ${secs}s` 
+            : `Elapsed Time: ${secs}s`;
     }, 1000);
 
-    // Simulate step progression
-    const steps = [
-        { id: "step-upload", delay: 2000 },
-        { id: "step-process", delay: 6000 },
-        { id: "step-enhance", delay: 15000 },
-        { id: "step-finalize", delay: 25000 }
-    ];
-
-    steps.forEach((step, index) => {
-        setTimeout(() => {
-            // Mark previous steps as done
-            for (let i = 0; i < index; i++) {
-                document.getElementById(steps[i].id).classList.remove("active");
-                document.getElementById(steps[i].id).classList.add("done");
+    function setActiveStep(index) {
+        steps.forEach((step, i) => {
+            step.classList.remove("active", "done");
+            if (i < index) {
+                step.classList.add("done");
+            } else if (i === index) {
+                step.classList.add("active");
             }
-            // Mark current step as active
-            document.getElementById(step.id).classList.add("active");
-        }, step.delay);
-    });
+        });
+    }
+
+    try {
+        setActiveStep(0);
+        progressPercent.textContent = "5%";
+        progressFill.style.width = "5%";
+        
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        
+        const response = await fetch("/enhance", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || "Upload failed");
+        }
+        
+        const taskId = data.task_id;
+        setActiveStep(1);
+        
+        // Polling loop
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusRes = await fetch(`/status/${taskId}`);
+                const statusData = await statusRes.json();
+                
+                if (statusData.status === 'error') {
+                    clearInterval(pollInterval);
+                    clearInterval(timerInterval);
+                    alert("Error: " + statusData.message);
+                    return;
+                }
+                
+                const pct = statusData.progress;
+                progressPercent.textContent = pct + "%";
+                progressFill.style.width = pct + "%";
+                
+                if (pct > 10 && pct < 95) {
+                    setActiveStep(2);
+                } else if (pct >= 95) {
+                    setActiveStep(3);
+                }
+                
+                if (statusData.status === 'completed') {
+                    clearInterval(pollInterval);
+                    clearInterval(timerInterval);
+                    window.location.href = `/result_page/${taskId}`;
+                }
+            } catch (err) {
+                console.error("Polling error", err);
+            }
+        }, 500);
+        
+    } catch (err) {
+        clearInterval(timerInterval);
+        alert("An error occurred: " + err.message);
+        emptyStatus.style.display = "block";
+        activeStatus.classList.remove("show");
+    }
 });
 </script>
-
-</body>
-</html>
+{% endblock %}

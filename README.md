@@ -1,4 +1,4 @@
-# AI Image Enhancement Web Application
+# SuperX
 
 Transform your images with AI-powered 4× super-resolution enhancement using ESRGAN (Enhanced Super-Resolution Generative Adversarial Network).
 
@@ -42,8 +42,8 @@ Side-by-side comparison with download options
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repository-url>
-cd image-enhancement-website
+git clone https://github.com/forex911/SuperX.git
+cd SuperX
 ```
 
 ### 2. Install Dependencies
@@ -71,7 +71,7 @@ Visit `http://127.0.0.1:5000` in your web browser.
 ## 📂 Project Structure
 
 ```
-image-enhancement-website/
+SuperX/
 ├── app.py                      # Flask application (main backend)
 ├── RRDBNet_arch.py            # ESRGAN model architecture
 ├── requirements.txt           # Python dependencies
@@ -316,11 +316,17 @@ For questions, issues, or suggestions:
 ### Landing Page
 Beautiful minimalist entrance with clear value proposition.
 
+![Landing Page](assets/superx-landing.png)
+
 ### Upload Interface
 Drag & drop interface with instant preview.
 
+![Upload Interface](assets/superx-dashboard.png)
+
 ### Results Page
-Side-by-side comparison with easy download.
+Interactive slider comparison with instant high-res download.
+
+![Results Page](assets/superx-comparison.png)
 
 ---
 

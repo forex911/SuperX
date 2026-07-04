@@ -1,35 +1,110 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image Enhancement</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}">
-</head>
-<body>
-    <main class="landing-container">
-        <section class="hero">
-            <h1>Enhance</h1>
-            <p class="subtitle">AI-Powered Image Enhancement</p>
-            <p class="description">Transform your images with advanced super-resolution technology. 4x upscaling with neural networks. Large images auto-resized.</p>
-            
-            <a href="/upload" class="cta-button">Start Enhancing</a>
-            
-            <div class="features">
-                <div class="feature">
-                    <span class="feature-number">4×</span>
-                    <span class="feature-text">Resolution</span>
-                </div>
-                <div class="feature">
-                    <span class="feature-number">∞</span>
-                    <span class="feature-text">Any Size</span>
-                </div>
-                <div class="feature">
-                    <span class="feature-number">AI</span>
-                    <span class="feature-text">Powered</span>
-                </div>
-            </div>
-        </section>
-    </main>
-</body>
-</html>
+{% extends 'base.html' %}
+
+{% block extra_css %}
+<style>
+.hero-card {
+    background-color: var(--bg-sidebar);
+    color: white;
+    border-radius: var(--border-radius-lg);
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.hero-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, var(--accent-purple) 0%, transparent 70%);
+    opacity: 0.15;
+    border-radius: 50%;
+}
+
+.hero-card::before {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    right: 10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, var(--accent-lime) 0%, transparent 70%);
+    opacity: 0.15;
+    border-radius: 50%;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    max-width: 600px;
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    color: #A0A0A0;
+    margin-bottom: 2rem;
+    max-width: 500px;
+    line-height: 1.6;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.feature-card {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.feature-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.text-lime { color: var(--accent-lime); }
+.text-purple { color: var(--accent-purple); }
+
+.feature-text {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-card">
+    <h1 class="hero-title">Take control of your image quality today!</h1>
+    <p class="hero-subtitle">Transform your images with advanced AI super-resolution. Get 4x upscaling powered by the ESRGAN neural network in seconds.</p>
+    <a href="/upload" class="btn-primary bg-lime text-dark" style="color: var(--accent-dark); text-decoration: none; display: inline-block;">Start Enhancing</a>
+</div>
+
+<h3 style="margin-bottom: 1.5rem;">Why SuperX?</h3>
+
+<div class="feature-grid">
+    <div class="feature-card">
+        <div class="feature-number text-lime">4×</div>
+        <div class="feature-text">Resolution Upscaling</div>
+    </div>
+    
+    <div class="feature-card">
+        <div class="feature-number text-purple">AI</div>
+        <div class="feature-text">ESRGAN Powered</div>
+    </div>
+    
+    <div class="feature-card">
+        <div class="feature-number" style="color: var(--accent-dark);">∞</div>
+        <div class="feature-text">Unlimited Uses</div>
+    </div>
+</div>
+{% endblock %}

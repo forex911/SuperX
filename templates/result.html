@@ -1,28 +1,226 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Image Enhanced</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='result.css') }}">
-</head>
-<body>
-    <h1>Image Enhancement Results</h1>
-    
-    <div class="images">
-        <div class="image-container">
-            <h2>Original</h2>
-            <img src="{{ original_url }}" alt="Original image">
-            <p><a href="{{ original_url }}" download>Download original</a></p>
-        </div>
+{% extends 'base.html' %}
 
-        <div class="image-container">
-            <h2>Enhanced</h2>
-            <img src="{{ enhanced_url }}" alt="Enhanced image">
-            <p><a href="{{ enhanced_url }}" download>Download enhanced</a></p>
-            <p><a href="/direct-result/{{ enhanced }}" target="_blank">View enhanced image directly</a></p>
-        </div>
+{% block extra_css %}
+<style>
+.comparison-container {
+    position: relative;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    border-radius: var(--border-radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-soft);
+    background-color: #FAFAFB;
+    border: 1px solid #E0E2E7;
+}
+
+/* Maintain aspect ratio dynamically */
+.comparison-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.img-comp-img {
+    width: 100%;
+    display: block;
+}
+
+.img-comp-img img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYNgfQ8OAY8AA8P8fI0gMpgYZQMBARoOhQQ+DGQ2GhmZogwXDA28gAAADZQQD/H6/4AAAAABJRU5ErkJggg==');
+}
+
+/* The clipped top image (Original) */
+.img-comp-overlay {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    border-right: 2px solid var(--accent-lime);
+}
+
+.img-comp-overlay img {
+    /* Must match the width of the container, not the overlay */
+    width: 1000px; /* will be set by JS dynamically */
+    height: 100%;
+    display: block;
+    max-width: none;
+    object-fit: fill;
+}
+
+/* Slider element */
+.img-comp-slider {
+    position: absolute;
+    z-index: 9;
+    cursor: ew-resize;
+    width: 40px;
+    height: 40px;
+    background-color: var(--accent-lime);
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.img-comp-slider::before {
+    content: "↔";
+    color: var(--accent-dark);
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.header-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.action-bar {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.badge-label {
+    position: absolute;
+    top: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius-pill);
+    font-size: 0.8rem;
+    font-weight: 700;
+    z-index: 5;
+    box-shadow: var(--shadow-soft);
+}
+
+.badge-original {
+    left: 1rem;
+    background: var(--bg-main);
+    color: var(--text-primary);
+}
+
+.badge-enhanced {
+    right: 1rem;
+    background: var(--accent-lime);
+    color: var(--accent-dark);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header header-actions-row">
+    <div>
+        <h2 class="page-title">Enhancement Complete</h2>
+        <p class="page-subtitle">Interact with the slider below to compare the results.</p>
     </div>
-    
-    <a href="/" class="process-again-btn">Process another image</a>
+    <a href="/upload" class="btn-primary" style="text-decoration: none;">Process Another</a>
+</div>
 
-</body>
-</html>
+<div class="comparison-container">
+    <div class="comparison-wrapper" id="comp-wrapper">
+        <!-- Bottom Image (Enhanced) -->
+        <div class="img-comp-img">
+            <span class="badge-label badge-enhanced">+400% Resolution</span>
+            <img src="{{ enhanced_url }}" alt="Enhanced Image" id="img-enhanced">
+        </div>
+        
+        <!-- Top Image (Original, Clipped) -->
+        <div class="img-comp-overlay" id="comp-overlay">
+            <span class="badge-label badge-original">Original</span>
+            <img src="{{ original_url }}" alt="Original Image" id="img-original">
+        </div>
+        
+        <!-- Slider Handle -->
+        <div class="img-comp-slider" id="comp-slider"></div>
+    </div>
+</div>
+
+<div class="action-bar">
+    <a href="{{ original_url }}" class="btn-secondary" style="text-decoration: none;" download>Download Original</a>
+    <a href="{{ enhanced_url }}" class="btn-primary" style="background: var(--accent-lime); color: var(--accent-dark); text-decoration: none; border: none;" download>Download Enhanced</a>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    initComparisons();
+});
+
+function initComparisons() {
+    const wrapper = document.getElementById("comp-wrapper");
+    const overlay = document.getElementById("comp-overlay");
+    const slider = document.getElementById("comp-slider");
+    const imgOriginal = document.getElementById("img-original");
+    
+    // Ensure the inner image matches the exact width of the wrapper
+    // so it doesn't squish when the overlay div resizes
+    function resizeImages() {
+        const w = wrapper.offsetWidth;
+        imgOriginal.style.width = w + "px";
+    }
+    
+    window.addEventListener("resize", resizeImages);
+    
+    // Wait for image to load to set initial sizes
+    imgOriginal.onload = resizeImages;
+    resizeImages();
+
+    let clicked = 0;
+
+    slider.addEventListener("mousedown", slideReady);
+    window.addEventListener("mouseup", slideFinish);
+    slider.addEventListener("touchstart", slideReady, {passive: true});
+    window.addEventListener("touchend", slideFinish);
+
+    function slideReady(e) {
+        e.preventDefault();
+        clicked = 1;
+        window.addEventListener("mousemove", slideMove);
+        window.addEventListener("touchmove", slideMove, {passive: true});
+    }
+
+    function slideFinish() {
+        clicked = 0;
+        window.removeEventListener("mousemove", slideMove);
+        window.removeEventListener("touchmove", slideMove);
+    }
+
+    function slideMove(e) {
+        if (clicked == 0) return false;
+        
+        let pos = getCursorPos(e);
+        let w = wrapper.offsetWidth;
+        
+        // Prevent sliding off edges
+        if (pos < 0) pos = 0;
+        if (pos > w) pos = w;
+        
+        slide(pos);
+    }
+
+    function getCursorPos(e) {
+        let x = 0;
+        e = (e.changedTouches) ? e.changedTouches[0] : e;
+        const rect = wrapper.getBoundingClientRect();
+        x = e.pageX - rect.left - window.pageXOffset;
+        return x;
+    }
+
+    function slide(x) {
+        overlay.style.width = x + "px";
+        slider.style.left = x + "px";
+    }
+}
+</script>
+{% endblock %}
