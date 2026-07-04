@@ -281,8 +281,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Contributors
 
-- [subeesesh](https://github.com/subeesesh)
-- [sanjaim25](https://github.com/sanjaim25)
+- <img src="https://cdn.simpleicons.org/github/181717" width="16" height="16" alt="GitHub" style="vertical-align: middle; margin-right: 4px;"> [subeesesh](https://github.com/subeesesh)
+- <img src="https://cdn.simpleicons.org/github/181717" width="16" height="16" alt="GitHub" style="vertical-align: middle; margin-right: 4px;"> [sanjaim25](https://github.com/sanjaim25)
 
 ## License
 
